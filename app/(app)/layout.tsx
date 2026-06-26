@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <>
-      <TopBar userName={session.user.name ?? session.user.email ?? 'User'} initials={initials} />
+      <TopBar userName={session.user.name ?? session.user.email ?? 'User'} initials={initials} email={session.user.email ?? ''} />
       <NavIsland isAdmin={isAdmin} />
       <div style={{ paddingTop: 56, paddingLeft: 72 }}>{children}</div>
     </>

@@ -1,6 +1,20 @@
 import { signOut } from '@/auth';
+import UserMenu from './UserMenu';
 
-export default function TopBar({ userName, initials }: { userName: string; initials: string }) {
+export default function TopBar({
+  userName,
+  initials,
+  email,
+}: {
+  userName: string;
+  initials: string;
+  email: string;
+}) {
+  const handleSignOut = async () => {
+    'use server';
+    await signOut({ redirectTo: '/login' });
+  };
+
   return (
     <div
       style={{
@@ -43,34 +57,12 @@ export default function TopBar({ userName, initials }: { userName: string; initi
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 0 3px #d1fae5' }} />
           Engine live
         </span>
-        <span style={{ fontSize: 12, color: '#52525b' }}>{userName}</span>
-        <form
-          action={async () => {
-            'use server';
-            await signOut({ redirectTo: '/login' });
-          }}
-        >
-          <button
-            type="submit"
-            title="Sign out"
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: '50%',
-              background: '#18181b',
-              color: '#fff',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            {initials}
-          </button>
-        </form>
+        <UserMenu
+          userName={userName}
+          initials={initials}
+          email={email}
+          onSignOut={handleSignOut}
+        />
       </div>
     </div>
   );
