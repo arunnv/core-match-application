@@ -8,7 +8,7 @@ export const authConfig: NextAuthConfig = {
   cookies: {
     sessionToken: {
       name: 'authjs.session-token',
-      options: { httpOnly: true, sameSite: 'lax', path: '/', secure: false },
+      options: { httpOnly: true, sameSite: 'lax', path: '/', secure: true },
     },
   },
   session: { strategy: 'jwt' },
