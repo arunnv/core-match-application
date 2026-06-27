@@ -1,0 +1,73 @@
+version: '3.9'
+
+services:
+
+  # ── PostgreSQL with pgvector ─────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: corematch_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-corematch}
+      POSTGRES_USER:     ${POSTGRES_USER:-corematch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}   # required — set in Coolify env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - corematch_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-corematch} -d ${POSTGRES_DB:-corematch}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+
+  # ── Next.js application ───────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: corematch_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV:          production
+      PORT:              3000
+      HOSTNAME:          0.0.0.0
+
+      # Assembled from individual Coolify env vars so the DB host resolves
+      # to the internal Docker service name, not localhost
+      DATABASE_URL:      postgresql://${POSTGRES_USER:-corematch}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-corematch}
+
+      NEXTAUTH_URL:      ${NEXTAUTH_URL}         # e.g. https://app.yourdomain.com
+      NEXTAUTH_SECRET:   ${NEXTAUTH_SECRET}
+
+      GOOGLE_CLIENT_ID:     ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GEMINI_API_KEY:       ${GEMINI_API_KEY}
+    ports:
+      # Coolify's Traefik proxy routes external traffic to port 3000
+      # Do NOT expose this to 0.0.0.0 in production — remove the host binding
+      # and let Coolify handle ingress via the internal network
+      - "3000:3000"
+    networks:
+      - corematch_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+
+volumes:
+  postgres_data:
+    driver: local
+
+
+networks:
+  corematch_net:
+    driver: bridge

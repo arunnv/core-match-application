@@ -61,10 +61,10 @@ export default function NavIsland({ isAdmin }: { isAdmin: boolean }) {
         boxShadow: '0 12px 32px -12px rgba(24,24,27,.22), 0 2px 6px -2px rgba(24,24,27,.08)',
       }}
     >
-      {/* Logo */}
-      <div style={{ width: 38, height: 38, borderRadius: 13, background: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+      {/* Logo — navigates home */}
+      <Link href="/jobs" title="Home" style={{ width: 38, height: 38, borderRadius: 13, background: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, textDecoration: 'none' }}>
         <div style={{ width: 13, height: 13, background: '#10b981', transform: 'rotate(45deg)', borderRadius: 2 }} />
-      </div>
+      </Link>
 
       {/* Admin — only visible to admins */}
       {isAdmin && (
