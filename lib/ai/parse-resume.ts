@@ -1,23 +1,10 @@
 import mammoth from 'mammoth';
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  // Use pdfjs-dist (legacy build) which doesn't require canvas
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-
-  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
-  const doc = await loadingTask.promise;
-
-  const textParts: string[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      .map((item) => ('str' in item ? item.str : ''))
-      .join(' ');
-    textParts.push(pageText);
-  }
-
-  return textParts.join('\n').trim();
+  // pdf-parse v1 — simple Node.js-compatible wrapper around pdfjs
+  const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
+  const data = await pdfParse(buffer);
+  return data.text.trim();
 }
 
 export async function extractText(buffer: Buffer, mimeType: string, filename: string): Promise<string> {
@@ -37,7 +24,6 @@ export async function extractText(buffer: Buffer, mimeType: string, filename: st
     return value.trim();
   }
 
-  // Plain text fallback
   return buffer.toString('utf-8').trim();
 }
 

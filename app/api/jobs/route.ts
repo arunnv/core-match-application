@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
     }).returning();
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
-    if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('23505')) {
+    const causeCode = (err as { cause?: { code?: string } })?.cause?.code;
+    if (causeCode === '23505' || msg.includes('unique') || msg.includes('duplicate') || msg.includes('23505')) {
       return NextResponse.json({ error: `Job code ${jobData.code} is already taken — please use a different code.` }, { status: 409 });
     }
     throw err;
