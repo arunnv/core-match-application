@@ -51,7 +51,9 @@ export default function JobsDashboard({ initialJobs }: { initialJobs: Job[] }) {
           </div>
           <div>
             <div style={{ fontSize: 10, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 6 }}>ACTIVE CANDIDATES</div>
-            <div style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 30, color: '#059669' }}>122</div>
+            <div style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 30, color: '#059669' }}>
+              {jobs.reduce((a, j) => a + j.scored + j.processing, 0)}
+            </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { db } from '@/db';
-import { candidates, rubricCompetencies } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { candidates, rubricCompetencies, jobs } from '@/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -20,20 +20,22 @@ type ScoredResult = {
 };
 
 export async function scoreCandidate(candidateId: string, resumeText: string, jobId: string) {
+  console.log(`[scorer] Starting score for candidate ${candidateId}, job ${jobId}`);
   try {
-    // Fetch competencies
     const comps = await db
       .select()
       .from(rubricCompetencies)
       .where(eq(rubricCompetencies.jobId, jobId))
       .orderBy(rubricCompetencies.sortOrder);
 
-    const competencyList = comps
-      .map((c) => `- ${c.name} (weight: ${Math.round(c.weight)}%, level: ${c.level})`)
-      .join('\n');
+    console.log(`[scorer] Found ${comps.length} competencies for job ${jobId}`);
+
+    const competencyList = comps.length > 0
+      ? comps.map((c) => `- ${c.name} (weight: ${Math.round(c.weight)}%, level: ${c.level})`).join('\n')
+      : '- General fit (weight: 100%, level: CORE)';
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.1-flash-lite',
       generationConfig: { responseMimeType: 'application/json' },
     });
 
@@ -74,10 +76,25 @@ Rules:
 - capabilities + gaps should collectively cover all ${comps.length} competencies
 - Respond with ONLY the JSON object, no markdown`;
 
+    console.log(`[scorer] Calling Gemini for candidate ${candidateId}`);
     const result = await model.generateContent(prompt);
     const text = result.response.text();
+    console.log(`[scorer] Gemini responded, parsing JSON...`);
     const parsed = JSON.parse(text) as ScoredResult;
 
+    // Normalize capabilities/gaps — Gemini sometimes returns strings instead of objects
+    const normalizeItems = (items: unknown[]): { label: string; note: string; w: number }[] =>
+      items.map((item) => {
+        if (typeof item === 'string') return { label: item, note: '', w: 0 };
+        const obj = item as Record<string, unknown>;
+        return {
+          label: String(obj.label ?? obj.name ?? ''),
+          note: String(obj.note ?? obj.description ?? obj.evidence ?? ''),
+          w: Number(obj.w ?? obj.weight ?? 0),
+        };
+      });
+
+    console.log(`[scorer] Parsed score: ${parsed.score}, updating DB...`);
     await db.update(candidates).set({
       name: parsed.name || 'Unknown',
       email: parsed.email ?? null,
@@ -85,11 +102,11 @@ Rules:
       location: parsed.location ?? null,
       experience: parsed.experience ?? null,
       score: Math.max(0, Math.min(100, parsed.score)),
-      tags: parsed.tags ?? [],
+      tags: Array.isArray(parsed.tags) ? parsed.tags : [],
       aiHead: parsed.aiHead ?? '',
-      aiReasoning: parsed.aiReasoning ?? [],
-      capabilities: parsed.capabilities ?? [],
-      gaps: parsed.gaps ?? [],
+      aiReasoning: Array.isArray(parsed.aiReasoning) ? parsed.aiReasoning : [],
+      capabilities: normalizeItems(Array.isArray(parsed.capabilities) ? parsed.capabilities : []),
+      gaps: normalizeItems(Array.isArray(parsed.gaps) ? parsed.gaps : []),
       status: 'scored',
     }).where(eq(candidates.id, candidateId));
 
@@ -101,5 +118,24 @@ Rules:
       aiHead: 'Scoring failed — please re-upload this resume.',
       aiReasoning: [],
     }).where(eq(candidates.id, candidateId));
+  } finally {
+    await updateJobCounts(jobId);
+  }
+}
+
+async function updateJobCounts(jobId: string) {
+  const [counts] = await db
+    .select({
+      scored: sql<number>`count(*) filter (where ${candidates.status} = 'scored')`,
+      processing: sql<number>`count(*) filter (where ${candidates.status} = 'processing')`,
+    })
+    .from(candidates)
+    .where(eq(candidates.jobId, jobId));
+
+  if (counts) {
+    await db.update(jobs).set({
+      scored: Number(counts.scored),
+      processing: Number(counts.processing),
+    }).where(eq(jobs.id, jobId));
   }
 }
