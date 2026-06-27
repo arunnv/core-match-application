@@ -74,7 +74,6 @@ export default function AuthCard() {
           <div style={{ width: 12, height: 12, background: '#10b981', transform: 'rotate(45deg)', borderRadius: 2 }} />
         </div>
         <span style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 17, letterSpacing: '-.01em', color: '#18181b' }}>CoreMatch</span>
-        <span style={{ marginLeft: 'auto', fontSize: 9, letterSpacing: '.16em', color: '#10b981', border: '1px solid #a7f3d0', background: '#ecfdf5', padding: '2px 7px', borderRadius: 6 }}>v2 · TALENT INTELLIGENCE</span>
       </div>
 
       {/* Mode toggle */}

@@ -37,19 +37,6 @@ export default function TopBar({
         <span style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 16, letterSpacing: '-.01em' }}>
           CoreMatch
         </span>
-        <span
-          style={{
-            fontSize: 10,
-            letterSpacing: '.18em',
-            color: '#10b981',
-            border: '1px solid #a7f3d0',
-            background: '#ecfdf5',
-            padding: '2px 7px',
-            borderRadius: 6,
-          }}
-        >
-          v2 · TALENT INTELLIGENCE
-        </span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, fontSize: 12, color: '#71717a' }}>
