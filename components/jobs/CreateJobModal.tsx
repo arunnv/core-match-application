@@ -2,17 +2,20 @@
 
 import { useState } from 'react';
 
-type JobForm = {
+type Job = {
+  id: string;
+  code: string;
   title: string;
   location: string;
   experience: string;
   status: 'Active' | 'Archived' | 'Draft';
-  code: string;
+  scored: number;
+  processing: number;
 };
 
 type Props = {
   onClose: () => void;
-  onCreate: (job: JobForm) => void;
+  onCreate: (job: Job) => void;
   existingCount: number;
 };
 
@@ -51,19 +54,66 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const [parseText, setParseText] = useState(EXAMPLE_JD);
   const [form, setForm] = useState({ title: '', location: '', experience: '', workMode: 'Remote' as typeof WORK_MODES[number] });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const nextCode = `JC#${String(105 + existingCount).padStart(5, '0')}`;
   const canCreate = mode === 'ai' ? parseText.trim().length > 0 : form.title.trim().length > 0;
 
-  const handleSubmit = () => {
-    if (!canCreate) return;
+  const handleSubmit = async () => {
+    if (!canCreate || submitting) return;
+    setError(null);
+
+    let payload: Record<string, string>;
     if (mode === 'ai') {
       const p = parseJD(parseText);
-      if (!p.title) return;
-      onCreate({ title: p.title, location: p.loc || 'Remote', experience: p.exp || 'Remote', status: 'Active', code: p.code || nextCode });
+      if (!p.title) { setError('Could not extract a job title — try manual entry.'); return; }
+      payload = {
+        title: p.title,
+        location: p.loc || 'Remote',
+        experience: p.exp || '',
+        workMode: 'Remote',
+        status: 'Active',
+        code: p.code || nextCode,
+      };
     } else {
       if (!form.title.trim()) return;
-      onCreate({ title: form.title.trim(), location: form.location.trim() || form.workMode, experience: form.experience.trim() || form.workMode, status: 'Active', code: nextCode });
+      payload = {
+        title: form.title.trim(),
+        location: form.location.trim() || form.workMode,
+        experience: form.experience.trim() || '',
+        workMode: form.workMode,
+        status: 'Active',
+        code: nextCode,
+      };
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json() as { job?: Job; error?: string; issues?: unknown };
+
+      if (!res.ok) {
+        if (res.status === 409 || (data.error as string)?.toLowerCase().includes('duplicate') || (data.error as string)?.toLowerCase().includes('unique')) {
+          setError(`Job code ${payload.code} already exists — please use a different code.`);
+        } else {
+          setError((data.error as string) ?? 'Failed to create job. Please try again.');
+        }
+        return;
+      }
+
+      if (data.job) {
+        onCreate(data.job);
+      }
+    } catch {
+      setError('Network error — please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -163,6 +213,14 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
                 </div>
               </>
             )}
+
+            {/* Inline error */}
+            {error && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 13px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 9, fontSize: 12, color: '#dc2626' }}>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.6"/><path d="M10 6v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="10" cy="13.5" r="1" fill="currentColor"/></svg>
+                {error}
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -175,10 +233,11 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
               <button onClick={onClose} style={{ background: '#fff', color: '#71717a', border: '1px solid #e4e4e7', padding: '11px 16px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer' }}>Cancel</button>
               <button
                 onClick={handleSubmit}
-                disabled={!canCreate}
-                style={{ border: 'none', padding: '11px 18px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, transition: 'all .2s', background: canCreate ? '#18181b' : '#e4e4e7', color: canCreate ? '#fff' : '#a1a1aa', cursor: canCreate ? 'pointer' : 'not-allowed' }}
+                disabled={!canCreate || submitting}
+                style={{ border: 'none', padding: '11px 18px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, transition: 'all .2s', background: canCreate && !submitting ? '#18181b' : '#e4e4e7', color: canCreate && !submitting ? '#fff' : '#a1a1aa', cursor: canCreate && !submitting ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 7 }}
               >
-                {mode === 'ai' ? 'Parse & create role' : 'Create job role'}
+                {submitting && <span className="spin-anim" style={{ width: 11, height: 11, border: '2px solid #52525b', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} />}
+                {submitting ? 'Creating…' : mode === 'ai' ? 'Parse & create role' : 'Create job role'}
               </button>
             </div>
           </div>

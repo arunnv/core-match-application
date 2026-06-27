@@ -29,11 +29,8 @@ export default function JobsDashboard({ initialJobs }: { initialJobs: Job[] }) {
       j.location.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleCreate = (job: Omit<Job, 'id' | 'scored' | 'processing'>) => {
-    setJobs((prev) => [
-      { ...job, id: `j${Date.now()}`, scored: 0, processing: 0, isNew: true },
-      ...prev,
-    ]);
+  const handleCreate = (job: Job) => {
+    setJobs((prev) => [{ ...job, isNew: true }, ...prev]);
     setShowCreate(false);
   };
 

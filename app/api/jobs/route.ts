@@ -39,15 +39,25 @@ export async function POST(request: NextRequest) {
   if (!result.success) return NextResponse.json({ error: 'Validation failed', issues: result.error.flatten() }, { status: 422 });
 
   const { competencies, ...jobData } = result.data;
-  const [job] = await db.insert(jobs).values({
-    ...jobData,
-    tenantId: session.user.tenantId,
-    createdBy: session.user.id,
-  }).returning();
+
+  let job: typeof jobs.$inferSelect | undefined;
+  try {
+    [job] = await db.insert(jobs).values({
+      ...jobData,
+      tenantId: session.user.tenantId,
+      createdBy: session.user.id,
+    }).returning();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('23505')) {
+      return NextResponse.json({ error: `Job code ${jobData.code} is already taken — please use a different code.` }, { status: 409 });
+    }
+    throw err;
+  }
 
   if (competencies?.length && job) {
     await db.insert(rubricCompetencies).values(
-      competencies.map((c) => ({ ...c, jobId: job.id }))
+      competencies.map((c) => ({ ...c, jobId: job!.id }))
     );
   }
 
