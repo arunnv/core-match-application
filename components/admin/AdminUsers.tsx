@@ -5,16 +5,42 @@ import Link from 'next/link';
 
 type User = { id: string; name: string; role: string; lastLogin: string; credits: number; enabled: boolean };
 
-export default function AdminUsers({ initialUsers }: { initialUsers: User[] }) {
+export default function AdminUsers({
+  initialUsers,
+  totalSignUps,
+  totalCreditsUsed,
+}: {
+  initialUsers: User[];
+  totalSignUps: number;
+  totalCreditsUsed: number;
+}) {
   const [users, setUsers] = useState(initialUsers);
   const [drawerId, setDrawerId] = useState<string | null>(null);
 
-  const toggleUser = (id: string) =>
-    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, enabled: !u.enabled } : u)));
+  const toggleUser = async (id: string) => {
+    const user = users.find((u) => u.id === id);
+    if (!user) return;
+    const newEnabled = !user.enabled;
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, enabled: newEnabled } : u)));
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: newEnabled }),
+      });
+      if (!res.ok) {
+        setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, enabled: user.enabled } : u)));
+      }
+    } catch {
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, enabled: user.enabled } : u)));
+    }
+  };
 
   const drawerUser = users.find((u) => u.id === drawerId) ?? null;
   const topConsumers = [...users].sort((a, b) => b.credits - a.credits).slice(0, 3);
   const maxCredits = Math.max(...users.map((u) => u.credits), 1);
+
+  const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
 
   return (
     <>
@@ -36,9 +62,9 @@ export default function AdminUsers({ initialUsers }: { initialUsers: User[] }) {
         {/* Metrics */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 28 }}>
           {[
-            { label: 'TOTAL SIGN-UPS', value: '1,420', sub: '+45 this week', dot: false },
-            { label: 'CURRENTLY LOGGED IN', value: '312', sub: 'Active sessions', subColor: '#059669', dot: true },
-            { label: 'CREDITS USED TODAY', value: '84.5K', sub: '7% above average', subColor: '#d97706', dot: false },
+            { label: 'TOTAL SIGN-UPS', value: totalSignUps.toLocaleString(), sub: `${users.filter(u => u.enabled).length} active`, dot: false },
+            { label: 'ACTIVE ACCOUNTS', value: users.filter(u => u.enabled).length.toString(), sub: 'Enabled users', subColor: '#059669' as string | undefined, dot: true },
+            { label: 'TOTAL CREDITS USED', value: formatNumber(totalCreditsUsed), sub: 'Lifetime across all users', subColor: '#d97706' as string | undefined, dot: false },
           ].map(({ label, value, sub, subColor, dot }) => (
             <div key={label} style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 14, padding: 20, boxShadow: '0 1px 2px rgba(24,24,27,.04)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
@@ -74,6 +100,9 @@ export default function AdminUsers({ initialUsers }: { initialUsers: User[] }) {
                   </div>
                 );
               })}
+              {topConsumers.length === 0 && (
+                <div style={{ fontSize: 12, color: '#a1a1aa', textAlign: 'center', padding: '20px 0' }}>No data yet</div>
+              )}
             </div>
           </div>
 
@@ -100,7 +129,7 @@ export default function AdminUsers({ initialUsers }: { initialUsers: User[] }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <button
-                    onClick={(e) => { e.stopPropagation(); toggleUser(u.id); }}
+                    onClick={(e) => { e.stopPropagation(); void toggleUser(u.id); }}
                     style={{ width: 40, height: 24, borderRadius: 12, border: 'none', background: u.enabled ? '#059669' : '#d4d4d8', cursor: 'pointer', position: 'relative', transition: 'all .3s' }}
                   >
                     <div style={{ position: 'absolute', width: 20, height: 20, borderRadius: 10, background: '#fff', top: 2, left: u.enabled ? 18 : 2, transition: 'left .3s' }} />
@@ -137,7 +166,7 @@ export default function AdminUsers({ initialUsers }: { initialUsers: User[] }) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
                 <button
-                  onClick={() => toggleUser(drawerUser.id)}
+                  onClick={() => void toggleUser(drawerUser.id)}
                   style={{ width: '100%', padding: 12, borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer', border: 'none', background: drawerUser.enabled ? '#fee2e2' : '#ecfdf5', color: drawerUser.enabled ? '#991b1b' : '#065f46', fontWeight: 500 }}
                 >
                   {drawerUser.enabled ? 'Suspend User Account' : 'Reactivate Account'}
