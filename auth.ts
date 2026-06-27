@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '@/db';
 import { users, accounts, sessions, verificationTokens, tenants } from '@/db/schema';
 import type { DefaultSession } from 'next-auth';
+import { authConfig } from '@/auth.config';
 
 declare module 'next-auth' {
   interface Session {
@@ -23,21 +24,13 @@ declare module 'next-auth' {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
-  cookies: {
-    sessionToken: {
-      name: 'authjs.session-token',
-      options: { httpOnly: true, sameSite: 'lax', path: '/', secure: false },
-    },
-  },
+  ...authConfig,
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
-  session: { strategy: 'jwt' },
-  pages: { signIn: '/login' },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -83,13 +76,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user, account }) {
-      // On every sign-in, fetch fresh role + tenantId from DB
+      // Only query DB on sign-in (when user object is present)
       if (user?.id || account) {
         const userId = user?.id ?? (token.id as string | undefined);
         if (userId) {
           const [dbUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
           if (dbUser) {
-            // For Google users without a tenant, assign the first available tenant
             let tenantId = dbUser.tenantId;
             if (!tenantId) {
               const [firstTenant] = await db.select({ id: tenants.id }).from(tenants).limit(1);
