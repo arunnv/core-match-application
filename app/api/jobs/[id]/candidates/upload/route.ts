@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/db';
 import { candidates } from '@/db/schema';
@@ -24,41 +24,41 @@ export async function POST(req: NextRequest, props: RouteContext<'/api/jobs/[id]
   }
 
   const files = formData.getAll('files') as File[];
-  if (!files.length) {
-    return NextResponse.json({ error: 'No files provided' }, { status: 400 });
-  }
+  if (!files.length) return NextResponse.json({ error: 'No files provided' }, { status: 400 });
+  if (files.length > 20) return NextResponse.json({ error: 'Maximum 20 files per upload' }, { status: 400 });
 
-  if (files.length > 20) {
-    return NextResponse.json({ error: 'Maximum 20 files per upload' }, { status: 400 });
-  }
-
-  const createdIds: string[] = [];
+  // Read all file buffers before response (File objects are not available after response)
+  const toScore: { id: string; buffer: Buffer; mimeType: string; fileName: string }[] = [];
 
   for (const file of files) {
-    if (!isAllowedMime(file.type, file.name)) {
-      continue; // skip unsupported formats silently
-    }
+    if (!isAllowedMime(file.type, file.name)) continue;
 
-    // Insert placeholder row immediately
     const [row] = await db
       .insert(candidates)
       .values({ jobId, name: file.name.replace(/\.[^.]+$/, ''), status: 'processing', fileName: file.name })
       .returning({ id: candidates.id });
 
     if (!row) continue;
-    createdIds.push(row.id);
 
-    // Fire-and-forget scoring
     const buffer = Buffer.from(await file.arrayBuffer());
-    void (async () => {
-      try {
-        const text = await extractText(buffer, file.type, file.name);
-        await scoreCandidate(row.id, text, jobId);
-      } catch (err) {
-        console.error('[upload] scoring error:', err);
-      }
-    })();
+    toScore.push({ id: row.id, buffer, mimeType: file.type, fileName: file.name });
   }
 
-  return NextResponse.json({ created: createdIds, total: createdIds.length }, { status: 201 });
+  // Use next/server `after` so scoring runs after response is sent
+  // and is guaranteed to complete even in serverless environments
+  after(async () => {
+    for (const { id, buffer, mimeType, fileName } of toScore) {
+      try {
+        console.log(`[upload] extracting text for candidate ${id}`);
+        const text = await extractText(buffer, mimeType, fileName);
+        console.log(`[upload] extracted ${text.length} chars, scoring...`);
+        await scoreCandidate(id, text, jobId);
+        console.log(`[upload] scored candidate ${id}`);
+      } catch (err) {
+        console.error(`[upload] error for candidate ${id}:`, err);
+      }
+    }
+  });
+
+  return NextResponse.json({ created: toScore.map((t) => t.id), total: toScore.length }, { status: 201 });
 }

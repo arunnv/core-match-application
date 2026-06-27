@@ -4,11 +4,20 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { displayInts, rebalanceWeights } from '@/lib/utils';
 
-type Competency = { id: string; name: string; level: string; weight: number };
+type Competency = { id: string; name: string; level: string; weight: number; sortOrder: number };
 type DropState = 'idle' | 'over' | 'uploading' | 'done' | 'error';
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-const BAR_COLORS = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0'];
-const INIT_WEIGHTS = [34, 24, 18, 14, 10];
+const BAR_COLORS = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5'];
+const LEVELS = ['CORE', 'IMPORTANT', 'BONUS'] as const;
+
+const DEFAULT_COMPETENCIES: Competency[] = [
+  { id: 'c1', name: 'Technical Skills', level: 'CORE', weight: 35, sortOrder: 0 },
+  { id: 'c2', name: 'Communication', level: 'IMPORTANT', weight: 25, sortOrder: 1 },
+  { id: 'c3', name: 'Problem Solving', level: 'CORE', weight: 20, sortOrder: 2 },
+  { id: 'c4', name: 'Team Collaboration', level: 'IMPORTANT', weight: 12, sortOrder: 3 },
+  { id: 'c5', name: 'Domain Knowledge', level: 'BONUS', weight: 8, sortOrder: 4 },
+];
 
 function levelStyle(level: string) {
   if (level === 'CORE') return { c: '#059669', b: '#a7f3d0' };
@@ -28,12 +37,20 @@ type Props = {
 
 export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, initialCompetencies }: Props) {
   const router = useRouter();
-  const [weights, setWeights] = useState<number[]>(INIT_WEIGHTS);
+  const [competencies, setCompetencies] = useState<Competency[]>(
+    initialCompetencies.length > 0 ? initialCompetencies : DEFAULT_COMPETENCIES
+  );
+  const [weights, setWeights] = useState<number[]>(() =>
+    (initialCompetencies.length > 0 ? initialCompetencies : DEFAULT_COMPETENCIES).map((c) => c.weight)
+  );
   const [animate, setAnimate] = useState(true);
   const [dropState, setDropState] = useState<DropState>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [addedCount, setAddedCount] = useState(0);
   const [stats, setStats] = useState<Stats>({ total: 0, processing: 0, scored: 0 });
+  const [saveState, setSaveState] = useState<SaveState>(initialCompetencies.length > 0 ? 'saved' : 'idle');
+  const [newName, setNewName] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rectRef = useRef<DOMRect | null>(null);
 
@@ -46,11 +63,7 @@ export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, i
       if (!res.ok) return;
       const data = await res.json() as { candidates: { status: string }[] };
       const all = data.candidates ?? [];
-      setStats({
-        total: all.length,
-        processing: all.filter((c) => c.status === 'processing').length,
-        scored: all.filter((c) => c.status === 'scored').length,
-      });
+      setStats({ total: all.length, processing: all.filter((c) => c.status === 'processing').length, scored: all.filter((c) => c.status === 'scored').length });
     } catch { /* noop */ }
   }, [jobId]);
 
@@ -60,76 +73,86 @@ export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, i
     e.preventDefault();
     rectRef.current = e.currentTarget.getBoundingClientRect();
     setAnimate(false);
-
     const move = (ev: PointerEvent) => {
       const x = ev.clientX - (rectRef.current?.left ?? 0);
       setWeights((w) => rebalanceWeights(w, i, (x / (rectRef.current?.width ?? 1)) * 100));
+      setSaveState('idle');
     };
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      setAnimate(true);
-    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); setAnimate(true); };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   }, []);
 
-  const resetRubric = () => { setWeights(INIT_WEIGHTS); setAnimate(true); };
+  const saveRubric = async () => {
+    setSaveState('saving');
+    try {
+      const payload = competencies.map((c, i) => ({
+        name: c.name,
+        level: c.level as 'CORE' | 'IMPORTANT' | 'BONUS',
+        weight: ints[i],
+        sortOrder: i,
+      }));
+      const res = await fetch(`/api/jobs/${jobId}/rubric`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ competencies: payload }),
+      });
+      setSaveState(res.ok ? 'saved' : 'error');
+      if (res.ok) setTimeout(() => setSaveState('idle'), 2500);
+    } catch {
+      setSaveState('error');
+    }
+  };
+
+  const addCompetency = () => {
+    if (!newName.trim()) return;
+    const id = `new-${Date.now()}`;
+    const newComp: Competency = { id, name: newName.trim(), level: 'IMPORTANT', weight: 10, sortOrder: competencies.length };
+    const newWeights = rebalanceWeights([...weights, 0], weights.length, 10);
+    setCompetencies((prev) => [...prev, newComp]);
+    setWeights(newWeights);
+    setNewName('');
+    setShowAdd(false);
+    setSaveState('idle');
+  };
+
+  const removeCompetency = (i: number) => {
+    const removedWeight = ints[i];
+    const newComps = competencies.filter((_, idx) => idx !== i);
+    const newW = weights.filter((_, idx) => idx !== i);
+    if (newW.length === 0) { setCompetencies([]); setWeights([]); return; }
+    // Distribute removed weight to first remaining
+    newW[0] = (newW[0] ?? 0) + removedWeight;
+    setCompetencies(newComps);
+    setWeights(newW);
+    setSaveState('idle');
+  };
+
+  const cycleLevel = (i: number) => {
+    setCompetencies((prev) => prev.map((c, idx) => idx === i ? { ...c, level: LEVELS[(LEVELS.indexOf(c.level as typeof LEVELS[number]) + 1) % LEVELS.length] } : c));
+    setSaveState('idle');
+  };
 
   const uploadFiles = async (files: FileList | File[]) => {
-    const arr = Array.from(files).filter((f) => {
-      const ext = f.name.split('.').pop()?.toLowerCase() ?? '';
-      return ['pdf', 'doc', 'docx', 'txt'].includes(ext);
-    });
-    if (!arr.length) {
-      setUploadError('No supported files found (PDF, DOC, DOCX, TXT).');
-      setDropState('error');
-      return;
-    }
-    if (arr.length > 20) {
-      setUploadError('Maximum 20 files per upload.');
-      setDropState('error');
-      return;
-    }
-
-    setDropState('uploading');
-    setUploadError(null);
-
+    const arr = Array.from(files).filter((f) => ['pdf', 'doc', 'docx', 'txt'].includes(f.name.split('.').pop()?.toLowerCase() ?? ''));
+    if (!arr.length) { setUploadError('No supported files (PDF, DOC, DOCX, TXT).'); setDropState('error'); return; }
+    if (arr.length > 20) { setUploadError('Maximum 20 files per upload.'); setDropState('error'); return; }
+    setDropState('uploading'); setUploadError(null);
     const form = new FormData();
     arr.forEach((f) => form.append('files', f));
-
     try {
-      const res = await fetch(`/api/jobs/${jobId}/candidates/upload`, {
-        method: 'POST',
-        body: form,
-      });
+      const res = await fetch(`/api/jobs/${jobId}/candidates/upload`, { method: 'POST', body: form });
       const data = await res.json() as { created?: string[]; total?: number; error?: string };
-      if (!res.ok) {
-        setUploadError(data.error ?? 'Upload failed.');
-        setDropState('error');
-        return;
-      }
+      if (!res.ok) { setUploadError(data.error ?? 'Upload failed.'); setDropState('error'); return; }
       setAddedCount(data.total ?? arr.length);
       setDropState('done');
       void fetchStats();
-      // Reset to idle after 4s
       setTimeout(() => setDropState('idle'), 4000);
-    } catch {
-      setUploadError('Network error — please try again.');
-      setDropState('error');
-    }
+    } catch { setUploadError('Network error.'); setDropState('error'); }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDropState('idle'); // reset over state first
-    void uploadFiles(e.dataTransfer.files);
-  };
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.length) void uploadFiles(e.target.files);
-    e.target.value = '';
-  };
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); void uploadFiles(e.dataTransfer.files); };
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.length) void uploadFiles(e.target.files); e.target.value = ''; };
 
   const dropZoneStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = { position: 'relative', borderRadius: 18, padding: '30px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', cursor: 'pointer', transition: 'all .35s cubic-bezier(.22,1,.36,1)' };
@@ -141,26 +164,18 @@ export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, i
   };
 
   const dropIconStyle = (): React.CSSProperties => {
-    if (dropState === 'over') return { width: 58, height: 58, borderRadius: 18, background: '#059669', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'scale(1.08) translateY(-2px)', transition: 'all .3s' };
+    if (dropState === 'over') return { width: 58, height: 58, borderRadius: 18, background: '#059669', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' };
     if (dropState === 'uploading') return { width: 58, height: 58, borderRadius: '50%', border: '4px solid #d1fae5', borderTopColor: '#059669', color: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' };
     if (dropState === 'done') return { width: 58, height: 58, borderRadius: 18, background: '#059669', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' };
     if (dropState === 'error') return { width: 58, height: 58, borderRadius: 18, background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' };
     return { width: 58, height: 58, borderRadius: 18, background: '#f4f4f5', color: '#71717a', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .3s' };
   };
 
-  const dropTitle =
-    dropState === 'over' ? 'Release to upload' :
-    dropState === 'uploading' ? 'Uploading résumés…' :
-    dropState === 'done' ? `${addedCount} résumé${addedCount !== 1 ? 's' : ''} added` :
-    dropState === 'error' ? 'Upload failed' :
-    'Drop résumés here';
+  const dropTitle = dropState === 'over' ? 'Release to upload' : dropState === 'uploading' ? 'Uploading résumés…' : dropState === 'done' ? `${addedCount} résumé${addedCount !== 1 ? 's' : ''} added` : dropState === 'error' ? 'Upload failed' : 'Drop résumés here';
+  const dropSub = dropState === 'over' ? "We'll parse and score against this rubric." : dropState === 'uploading' ? 'Extracting skills, mapping competencies…' : dropState === 'done' ? 'Scoring in background — check the dashboard.' : dropState === 'error' ? (uploadError ?? 'Please try again.') : 'Drag files or click to browse.';
 
-  const dropSub =
-    dropState === 'over' ? "We'll parse, embed and score against this rubric." :
-    dropState === 'uploading' ? 'Extracting skills, mapping to competencies, computing match.' :
-    dropState === 'done' ? 'Scoring in background — check the evaluation dashboard.' :
-    dropState === 'error' ? (uploadError ?? 'Please try again.') :
-    'Drag a stack of files or click to browse.';
+  const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? '✓ Saved' : saveState === 'error' ? 'Save failed' : 'Save Rubric';
+  const saveBg = saveState === 'saved' ? '#059669' : saveState === 'error' ? '#ef4444' : '#18181b';
 
   return (
     <div style={{ maxWidth: 1180, padding: '80px 48px 80px 96px' }} className="animate-rise">
@@ -170,7 +185,7 @@ export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, i
           <div style={{ fontSize: 11, letterSpacing: '.22em', color: '#a1a1aa', marginBottom: 14 }}>JOB ROLE / RUBRIC BUILDER</div>
           <h1 style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 46, lineHeight: 1.02, letterSpacing: '-.02em', margin: 0 }} dangerouslySetInnerHTML={{ __html: jobTitle.replace(/\s(\S+)$/, ' <span style="font-weight:600">$1</span>') }} />
           <div style={{ display: 'flex', gap: 18, marginTop: 18, fontSize: 12, color: '#71717a' }}>
-            <span>Platform Team</span><span style={{ color: '#d4d4d8' }}>·</span><span>{jobLocation}</span><span style={{ color: '#d4d4d8' }}>·</span><span>Req #{jobCode}</span>
+            <span>{jobLocation}</span><span style={{ color: '#d4d4d8' }}>·</span><span>Req #{jobCode}</span>
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, paddingTop: 28 }}>
@@ -186,30 +201,64 @@ export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, i
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <div>
               <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 17 }}>Weighted Competency Rubric</div>
-              <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 3 }}>Drag any weight — the rest rebalance to keep 100%.</div>
+              <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 3 }}>Drag weights · click badge to change level · save before uploading.</div>
             </div>
-            <button onClick={resetRubric} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#71717a', background: '#f4f4f5', border: '1px solid #e4e4e7', padding: '6px 11px', borderRadius: 8, cursor: 'pointer' }}>Reset</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setShowAdd((s) => !s)} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#71717a', background: '#f4f4f5', border: '1px solid #e4e4e7', padding: '6px 11px', borderRadius: 8, cursor: 'pointer' }}>+ Add</button>
+              <button
+                onClick={saveRubric}
+                disabled={saveState === 'saving' || competencies.length === 0}
+                style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#fff', background: saveBg, border: 'none', padding: '6px 13px', borderRadius: 8, cursor: 'pointer', transition: 'background .2s' }}
+              >
+                {saveLabel}
+              </button>
+            </div>
           </div>
 
+          {/* Add competency row */}
+          {showAdd && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, marginBottom: 4 }}>
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') addCompetency(); if (e.key === 'Escape') setShowAdd(false); }}
+                placeholder="Competency name…"
+                style={{ flex: 1, border: '1px solid #e4e4e7', borderRadius: 8, padding: '8px 11px', fontFamily: 'var(--font-mono)', fontSize: 12.5, outline: 'none' }}
+              />
+              <button onClick={addCompetency} style={{ background: '#18181b', color: '#fff', border: 'none', padding: '8px 13px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>Add</button>
+              <button onClick={() => setShowAdd(false)} style={{ background: '#f4f4f5', color: '#71717a', border: '1px solid #e4e4e7', padding: '8px 11px', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>✕</button>
+            </div>
+          )}
+
           <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {initialCompetencies.map((c, i) => {
+            {competencies.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#a1a1aa', fontSize: 12 }}>
+                No competencies yet — click <strong>+ Add</strong> to build your rubric.
+              </div>
+            )}
+            {competencies.map((c, i) => {
               const ls = levelStyle(c.level);
               return (
                 <div key={c.id} style={{ padding: '13px 0', borderTop: '1px solid #f1f1f2' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                       <span style={{ fontSize: 14, fontWeight: 500, color: '#27272a' }}>{c.name}</span>
-                      <span style={{ fontSize: 9.5, letterSpacing: '.12em', color: ls.c, border: `1px solid ${ls.b}`, padding: '1.5px 6px', borderRadius: 5 }}>{c.level}</span>
+                      <button
+                        onClick={() => cycleLevel(i)}
+                        title="Click to change level"
+                        style={{ fontSize: 9.5, letterSpacing: '.12em', color: ls.c, border: `1px solid ${ls.b}`, padding: '1.5px 6px', borderRadius: 5, background: 'transparent', cursor: 'pointer' }}
+                      >{c.level}</button>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, fontFamily: 'var(--font-space)' }}>
-                      <span style={{ fontWeight: 600, fontSize: 20, color: '#18181b', fontVariantNumeric: 'tabular-nums' }}>{ints[i]}</span>
-                      <span style={{ fontSize: 12, color: '#a1a1aa' }}>%</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, fontFamily: 'var(--font-space)' }}>
+                        <span style={{ fontWeight: 600, fontSize: 20, color: '#18181b', fontVariantNumeric: 'tabular-nums' }}>{ints[i]}</span>
+                        <span style={{ fontSize: 12, color: '#a1a1aa' }}>%</span>
+                      </div>
+                      <button onClick={() => removeCompetency(i)} style={{ fontSize: 12, color: '#d4d4d8', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, padding: '0 2px' }} title="Remove">✕</button>
                     </div>
                   </div>
-                  <div
-                    onPointerDown={(e) => startDrag(i, e)}
-                    style={{ position: 'relative', height: 30, display: 'flex', alignItems: 'center', cursor: 'ew-resize', touchAction: 'none' }}
-                  >
+                  <div onPointerDown={(e) => startDrag(i, e)} style={{ position: 'relative', height: 30, display: 'flex', alignItems: 'center', cursor: 'ew-resize', touchAction: 'none' }}>
                     <div style={{ position: 'absolute', left: 0, right: 0, height: 8, borderRadius: 6, background: '#f1f1f2', overflow: 'hidden' }}>
                       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 6, background: 'linear-gradient(90deg,#34d399,#059669)', width: `${ints[i]}%`, transition: tx }} />
                     </div>
@@ -222,49 +271,37 @@ export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, i
             })}
           </div>
 
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #e4e4e7', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ flex: 1, height: 10, borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
-              {initialCompetencies.map((c, i) => (
-                <div key={c.id} style={{ height: '100%', width: `${ints[i]}%`, background: BAR_COLORS[i], transition: tx }} />
-              ))}
+          {/* Summary bar */}
+          {competencies.length > 0 && (
+            <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #e4e4e7', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ flex: 1, height: 10, borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+                {competencies.map((c, i) => (
+                  <div key={c.id} style={{ height: '100%', width: `${ints[i]}%`, background: BAR_COLORS[i % BAR_COLORS.length], transition: tx }} />
+                ))}
+              </div>
+              <span style={{ fontSize: 11, color: '#a1a1aa', whiteSpace: 'nowrap' }}>{competencies.length} competencies</span>
             </div>
-            <span style={{ fontSize: 11, color: '#a1a1aa', whiteSpace: 'nowrap' }}>{initialCompetencies.length} competencies</span>
-          </div>
+          )}
         </div>
 
         {/* Right column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.txt"
-            style={{ display: 'none' }}
-            onChange={handleFileInput}
-          />
+          <input ref={fileInputRef} type="file" multiple accept=".pdf,.doc,.docx,.txt" style={{ display: 'none' }} onChange={handleFileInput} />
 
           {/* Drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); if (dropState === 'idle') setDropState('over'); }}
             onDragEnter={(e) => { e.preventDefault(); if (dropState === 'idle') setDropState('over'); }}
-            onDragLeave={(e) => {
-              e.preventDefault();
-              // Only leave if pointer actually left the zone
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropState('idle');
-            }}
+            onDragLeave={(e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropState('idle'); }}
             onDrop={handleDrop}
             onClick={() => { if (dropState === 'idle' || dropState === 'error' || dropState === 'done') fileInputRef.current?.click(); }}
             style={dropZoneStyle()}
           >
             <div style={dropIconStyle()} className={dropState === 'uploading' ? 'spin-anim' : undefined}>
-              {dropState === 'done' ? (
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              ) : dropState === 'error' ? (
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/></svg>
-              ) : dropState === 'uploading' ? null : (
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4L7.5 8.5M12 4l4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
-              )}
+              {dropState === 'done' ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+               : dropState === 'error' ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/><path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+               : dropState === 'uploading' ? null
+               : <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4L7.5 8.5M12 4l4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>}
             </div>
             <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, marginTop: 16, color: dropState === 'error' ? '#ef4444' : '#18181b' }}>{dropTitle}</div>
             <div style={{ fontSize: 11.5, color: dropState === 'error' ? '#ef4444' : '#a1a1aa', marginTop: 6, lineHeight: 1.5, maxWidth: 230 }}>{dropSub}</div>

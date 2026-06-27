@@ -91,8 +91,8 @@ export default function ScorecardDrawer({
               <span style={{ fontSize: 11, color: '#059669' }}>{c.capabilities.length}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {c.capabilities.map((cap) => (
-                <div key={cap.label} style={{ display: 'flex', gap: 11, padding: '12px 14px', background: '#f6fefb', border: '1px solid #d1fae5', borderRadius: 11 }}>
+              {c.capabilities.map((cap, i) => (
+                <div key={`cap-${i}`} style={{ display: 'flex', gap: 11, padding: '12px 14px', background: '#f6fefb', border: '1px solid #d1fae5', borderRadius: 11 }}>
                   <span style={{ marginTop: 1, flexShrink: 0, width: 16, height: 16, borderRadius: '50%', background: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="9" height="9" viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5l3 3 6-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   </span>
@@ -120,8 +120,8 @@ export default function ScorecardDrawer({
               <span style={{ fontSize: 11, color: '#d97706' }}>{c.gaps.length}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {c.gaps.map((gap) => (
-                <div key={gap.label} style={{ display: 'flex', gap: 11, padding: '12px 14px', background: '#fffdf5', border: '1px solid #fde68a', borderRadius: 11 }}>
+              {c.gaps.map((gap, i) => (
+                <div key={`gap-${i}`} style={{ display: 'flex', gap: 11, padding: '12px 14px', background: '#fffdf5', border: '1px solid #fde68a', borderRadius: 11 }}>
                   <span style={{ marginTop: 1, flexShrink: 0, width: 16, height: 16, borderRadius: '50%', background: '#fff', border: '1.5px solid #d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="8" height="8" viewBox="0 0 16 16" fill="none"><path d="M4 8h8" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" /></svg>
                   </span>
