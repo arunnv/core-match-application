@@ -35,7 +35,7 @@ export async function scoreCandidate(candidateId: string, resumeText: string, jo
       : '- General fit (weight: 100%, level: CORE)';
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: { responseMimeType: 'application/json' },
     });
 
