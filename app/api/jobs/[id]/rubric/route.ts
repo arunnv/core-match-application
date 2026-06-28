@@ -12,6 +12,7 @@ const SaveRubricSchema = z.object({
     level: z.enum(['CORE', 'IMPORTANT', 'BONUS']),
     weight: z.number().min(0).max(100),
     sortOrder: z.number().int(),
+    mandatory: z.boolean().default(false),
   })).min(1),
 });
 

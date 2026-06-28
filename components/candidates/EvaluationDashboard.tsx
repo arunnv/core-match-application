@@ -28,10 +28,12 @@ export default function EvaluationDashboard({
   jobId,
   jobTitle,
   candidates: initialCandidates,
+  isSuperAdmin = false,
 }: {
   jobId: string;
   jobTitle: string;
   candidates: Candidate[];
+  isSuperAdmin?: boolean;
 }) {
   const [candidates, setCandidates] = useState<Candidate[]>(initialCandidates);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -40,6 +42,9 @@ export default function EvaluationDashboard({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rescoringId, setRescoringId] = useState<string | null>(null);
 
   const fetchCandidates = useCallback(async () => {
     try {
@@ -61,7 +66,6 @@ export default function EvaluationDashboard({
     return () => clearInterval(pollingRef.current);
   }, [candidates, fetchCandidates]);
 
-  // Restart polling whenever a new processing candidate appears
   useEffect(() => {
     const hasProcessing = candidates.some((c) => c.status === 'processing');
     if (!hasProcessing) clearInterval(pollingRef.current);
@@ -96,6 +100,35 @@ export default function EvaluationDashboard({
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDelete = async (candidateId: string) => {
+    setDeletingId(candidateId);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/candidates/${candidateId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCandidates((prev) => prev.filter((c) => c.id !== candidateId));
+        if (activeId === candidateId) setActiveId(null);
+      }
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  };
+
+  const handleRescore = async (candidateId: string) => {
+    setRescoringId(candidateId);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/candidates/${candidateId}/rescore`, { method: 'POST' });
+      if (res.ok) {
+        setCandidates((prev) =>
+          prev.map((c) => c.id === candidateId ? { ...c, status: 'processing' as const } : c)
+        );
+        if (activeId === candidateId) setActiveId(null);
+      }
+    } finally {
+      setRescoringId(null);
     }
   };
 
@@ -236,9 +269,37 @@ export default function EvaluationDashboard({
                       <div className="pulse-dot" style={{ height: 18, width: 62, borderRadius: 6, background: '#f4f4f5' }} />
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#a1a1aa' }}>
-                    <span className="pulse-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: '#d4d4d8' }} />
-                    AI scoring…
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: '#a1a1aa', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="pulse-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: '#d4d4d8' }} />
+                      AI scoring…
+                    </span>
+                    {isSuperAdmin && (
+                      confirmDeleteId === c.id ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            onClick={() => handleDelete(c.id)}
+                            disabled={deletingId === c.id}
+                            style={{ padding: '4px 9px', borderRadius: 6, border: 'none', background: '#ef4444', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
+                          >
+                            {deletingId === c.id ? '…' : 'Confirm'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(c.id)}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fff8f8', color: '#ef4444', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
+                        >
+                          Delete
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
               );
@@ -246,13 +307,25 @@ export default function EvaluationDashboard({
 
             const band = bandForScore(c.score);
             const offset = ringOffset(c.score);
+            const isConfirmingDelete = confirmDeleteId === c.id;
 
             return (
               <div
                 key={c.id}
-                onClick={() => setActiveId(c.id)}
-                style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 22, alignItems: 'center', background: '#fff', border: '1px solid #e4e4e7', borderRadius: 16, padding: '18px 22px', cursor: 'pointer', transition: 'all .22s cubic-bezier(.22,1,.36,1)' }}
-                className="hover:border-[#d4d4d8] hover:-translate-y-px hover:shadow-lg"
+                onClick={() => !isSuperAdmin && setActiveId(c.id)}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'auto 1fr auto',
+                  gap: 22,
+                  alignItems: 'center',
+                  background: '#fff',
+                  border: `1px solid ${isConfirmingDelete ? '#fecaca' : '#e4e4e7'}`,
+                  borderRadius: 16,
+                  padding: '18px 22px',
+                  cursor: isSuperAdmin ? 'default' : 'pointer',
+                  transition: 'all .22s cubic-bezier(.22,1,.36,1)',
+                }}
+                className={isSuperAdmin ? '' : 'hover:border-[#d4d4d8] hover:-translate-y-px hover:shadow-lg'}
               >
                 {/* Score ring */}
                 <div style={{ position: 'relative', width: 58, height: 58, flexShrink: 0 }}>
@@ -269,7 +342,12 @@ export default function EvaluationDashboard({
                 {/* Identity */}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                    <span style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, color: '#18181b' }}>{c.name}</span>
+                    <span
+                      style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, color: '#18181b', cursor: 'pointer' }}
+                      onClick={(e) => { e.stopPropagation(); setActiveId(c.id); }}
+                    >
+                      {c.name}
+                    </span>
                     <span style={{ fontSize: 9, letterSpacing: '.14em', color: band.color, background: band.bg, border: `1px solid ${band.bd}`, padding: '2px 7px', borderRadius: 5 }}>{band.label}</span>
                   </div>
                   <div style={{ fontSize: 11.5, color: '#71717a', marginBottom: 9 }}>
@@ -282,19 +360,63 @@ export default function EvaluationDashboard({
                   </div>
                 </div>
 
-                {/* Right */}
+                {/* Right — metrics or SuperAdmin actions */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, textAlign: 'right' }}>
-                  <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#71717a' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: 2, background: '#059669' }} />{c.capabilities.length} matched
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: 2, background: '#d97706' }} />{c.gaps.length} gaps
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 12, color: '#18181b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    View scorecard <span style={{ color: '#059669' }}>→</span>
-                  </span>
+                  {isSuperAdmin ? (
+                    isConfirmingDelete ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                        <span style={{ fontSize: 10, color: '#ef4444', fontFamily: 'var(--font-mono)' }}>Delete candidate?</span>
+                        <button
+                          onClick={() => handleDelete(c.id)}
+                          disabled={deletingId === c.id}
+                          style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
+                        >
+                          {deletingId === c.id ? '…' : 'Confirm'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleRescore(c.id)}
+                          disabled={rescoringId === c.id}
+                          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e4e4e7', background: '#fff', color: '#52525b', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                        >
+                          {rescoringId === c.id ? (
+                            <span className="spin-anim" style={{ width: 10, height: 10, border: '1.5px solid #d4d4d8', borderTopColor: '#71717a', borderRadius: '50%', display: 'inline-block' }} />
+                          ) : (
+                            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M13 8A5 5 0 1 1 8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M13 3v5h-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          )}
+                          Rescore
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(c.id)}
+                          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff8f8', color: '#ef4444', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#71717a' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: 2, background: '#059669' }} />{c.capabilities.length} matched
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: 2, background: '#d97706' }} />{c.gaps.length} gaps
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 12, color: '#18181b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        View scorecard <span style={{ color: '#059669' }}>→</span>
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             );

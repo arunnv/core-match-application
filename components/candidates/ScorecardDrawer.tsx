@@ -1,6 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import { bandForScore, RING_C2, ringOffset } from '@/lib/utils';
+
+type EvaluationRow = {
+  competency: string;
+  level: string;
+  weight_percentage: number;
+  evidence_quote: string | null;
+  competency_score_0_to_100: number;
+  weighted_points_earned: number;
+  reasoning: string;
+};
 
 type Capability = { label: string; note: string; w: number };
 type Gap = { label: string; note: string; w: number };
@@ -8,6 +19,8 @@ type Gap = { label: string; note: string; w: number };
 type Candidate = {
   id: string;
   name: string;
+  email?: string | null;
+  phone?: string | null;
   currentRole: string;
   location: string;
   experience: string;
@@ -16,6 +29,7 @@ type Candidate = {
   aiReasoning: string[];
   capabilities: Capability[];
   gaps: Gap[];
+  evaluations?: EvaluationRow[];
 };
 
 export default function ScorecardDrawer({
@@ -27,125 +41,213 @@ export default function ScorecardDrawer({
 }) {
   const band = bandForScore(c.score);
   const offset = ringOffset(c.score, RING_C2);
+  const [breakdownOpen, setBreakdownOpen] = useState(true);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+
+  const evals = c.evaluations ?? [];
+  const hasEvals = evals.length > 0;
+  const computedTotal = evals.reduce((s, e) => s + e.weighted_points_earned, 0);
+
+  const evWithEvidence = evals.filter((e) => e.evidence_quote != null && e.competency_score_0_to_100 > 0);
+  const evGaps = evals.filter((e) => e.evidence_quote == null || e.competency_score_0_to_100 === 0);
 
   return (
     <>
-      {/* Scrim */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(24,24,27,.14)', backdropFilter: 'blur(1.5px)' }} className="animate-rise" />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(24,24,27,.14)', backdropFilter: 'blur(1.5px)' }} />
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 59 }} />
 
-      {/* Drawer */}
       <div
         className="cm-scroll animate-drawerin"
-        style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 61, width: 452, maxWidth: '94vw', background: '#fff', borderLeft: '1px solid #e4e4e7', boxShadow: '-30px 0 60px -30px rgba(24,24,27,.3)', overflowY: 'auto' }}
+        style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 61, width: 480, maxWidth: '94vw', background: '#fff', borderLeft: '1px solid #e4e4e7', boxShadow: '-30px 0 60px -30px rgba(24,24,27,.3)', overflowY: 'auto' }}
       >
         {/* Sticky header */}
-        <div style={{ position: 'sticky', top: 0, background: 'rgba(255,255,255,.9)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #f1f1f2', padding: '22px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.2em', color: '#a1a1aa' }}>EXPLAINABLE SCORECARD</div>
+        <div style={{ position: 'sticky', top: 0, background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #f1f1f2', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 }}>
+          <div style={{ fontSize: 10, letterSpacing: '.2em', color: '#a1a1aa' }}>EXPLAINABLE SCORECARD</div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>✕</button>
         </div>
 
-        <div style={{ padding: 26 }}>
-          {/* Identity + ring */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-              <svg width="72" height="72" viewBox="0 0 72 72">
-                <circle cx="36" cy="36" r="30" fill="none" stroke="#f1f1f2" strokeWidth="6" />
-                <circle cx="36" cy="36" r="22" fill="none" stroke="#f4f4f5" strokeWidth="1.5" strokeDasharray="1.5 4" />
-                <circle cx="36" cy="36" r="30" fill="none" stroke={band.color} strokeWidth="6" strokeLinecap="round" strokeDasharray="188.5" strokeDashoffset={offset} transform="rotate(-90 36 36)" style={{ transition: 'stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)' }} />
+        <div style={{ padding: 24 }}>
+
+          {/* ── BLOCK 1: Identity ── */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, paddingBottom: 20, borderBottom: '1px solid #f1f1f2' }}>
+            <div style={{ position: 'relative', width: 64, height: 64, flexShrink: 0 }}>
+              <svg width="64" height="64" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="27" fill="none" stroke="#f1f1f2" strokeWidth="5" />
+                <circle cx="32" cy="32" r="27" fill="none" stroke={band.color} strokeWidth="5" strokeLinecap="round" strokeDasharray="169.6" strokeDashoffset={ringOffset(c.score, 169.6)} transform="rotate(-90 32 32)" style={{ transition: 'stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)' }} />
               </svg>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 22, color: '#18181b' }}>{c.score}</div>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 18, color: '#18181b' }}>{c.score}</div>
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 5 }}>
-                <span style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 20 }}>{c.name}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 18, color: '#18181b' }}>{c.name}</span>
                 <span style={{ fontSize: 9, letterSpacing: '.14em', color: band.color, background: band.bg, border: `1px solid ${band.bd}`, padding: '2px 7px', borderRadius: 5 }}>{band.label}</span>
               </div>
-              <div style={{ fontSize: 12, color: '#71717a' }}>{c.currentRole} <span style={{ color: '#d4d4d8' }}>·</span> {c.location} <span style={{ color: '#d4d4d8' }}>·</span> {c.experience}</div>
-            </div>
-          </div>
-
-          {/* AI reasoning */}
-          <div style={{ marginTop: 28, paddingLeft: 16, borderLeft: '2px solid #a7f3d0' }}>
-            <div style={{ fontSize: 11, letterSpacing: '.18em', color: '#059669', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 7 }}>
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.6 3.9 4.2.3-3.2 2.7 1 4.1L8 10.9 4.4 12.6l1-4.1L2.2 5.7l4.2-.3z" stroke="#059669" strokeWidth="1.2" strokeLinejoin="round" /></svg>
-              AI REASONING
-            </div>
-            <div style={{ fontSize: 13, color: '#3f3f46', lineHeight: 1.3, marginBottom: 10 }}>{c.aiHead}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-              {c.aiReasoning.map((p, i) => (
-                <p key={i} style={{ margin: 0, fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 14.5, lineHeight: 1.62, color: '#52525b' }}>{p}</p>
-              ))}
-            </div>
-          </div>
-
-          {/* Capabilities */}
-          <div style={{ marginTop: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <span style={{ width: 22, height: 22, borderRadius: 7, background: '#ecfdf5', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5l3 3 6-7" stroke="#059669" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </span>
-                <span style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: '#065f46' }}>Capabilities Matched</span>
+              <div style={{ fontSize: 11.5, color: '#71717a', marginBottom: 7 }}>
+                {c.currentRole} <span style={{ color: '#d4d4d8' }}>·</span> {c.location} <span style={{ color: '#d4d4d8' }}>·</span> {c.experience}
               </div>
-              <span style={{ fontSize: 11, color: '#059669' }}>{c.capabilities.length}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {c.email && (
+                  <a href={`mailto:${c.email}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#52525b', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>
+                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="#a1a1aa" strokeWidth="1.4" /><path d="M1 5l7 5 7-5" stroke="#a1a1aa" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                    {c.email}
+                  </a>
+                )}
+                {c.phone && (
+                  <a href={`tel:${c.phone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#52525b', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>
+                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M3 2h3l1.5 3.5-1.5 1a9 9 0 0 0 3.5 3.5l1-1.5L14 10v3a1 1 0 0 1-1 1A12 12 0 0 1 2 3a1 1 0 0 1 1-1z" stroke="#a1a1aa" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+                    {c.phone}
+                  </a>
+                )}
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {c.capabilities.map((cap, i) => (
-                <div key={`cap-${i}`} style={{ display: 'flex', gap: 11, padding: '12px 14px', background: '#f6fefb', border: '1px solid #d1fae5', borderRadius: 11 }}>
-                  <span style={{ marginTop: 1, flexShrink: 0, width: 16, height: 16, borderRadius: '50%', background: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="9" height="9" viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5l3 3 6-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: '#18181b' }}>{cap.label}</span>
-                      <span style={{ fontSize: 10, color: '#059669', background: '#ecfdf5', padding: '1.5px 6px', borderRadius: 5, whiteSpace: 'nowrap' }}>{cap.w}% wt</span>
-                    </div>
-                    <div style={{ fontSize: 11.5, color: '#52525b', marginTop: 3, lineHeight: 1.45 }}>{cap.note}</div>
+          </div>
+
+          {/* ── BLOCK 2: Aggregate Score ── */}
+          <div style={{ marginTop: 18, background: '#fafafa', border: '1px solid #e4e4e7', borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div>
+                <div style={{ fontSize: 9, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 4 }}>AGGREGATE SCORE</div>
+                <div style={{ fontSize: 10, color: '#a1a1aa', fontFamily: 'var(--font-mono)' }}>
+                  Σ weighted_points_earned = {computedTotal.toFixed(1)} → capped at 100
+                </div>
+              </div>
+              <span style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 36, color: band.color, lineHeight: 1 }}>{c.score}</span>
+            </div>
+            <div style={{ height: 5, borderRadius: 3, background: '#ececed' }}>
+              <div style={{ height: '100%', width: `${c.score}%`, background: band.color, borderRadius: 3, transition: 'width .9s cubic-bezier(.22,1,.36,1)' }} />
+            </div>
+          </div>
+
+          {/* ── BLOCK 3: Evaluation Breakdown (primary focus) ── */}
+          {hasEvals && (
+            <div style={{ marginTop: 14 }}>
+              <button
+                onClick={() => setBreakdownOpen((o) => !o)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#18181b', border: 'none', borderRadius: 10, padding: '11px 15px', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10.5, color: '#fff', letterSpacing: '.12em' }}
+              >
+                <span>EVALUATION BREAKDOWN · {evals.length} COMPETENCIES</span>
+                <span style={{ transition: 'transform .2s', transform: breakdownOpen ? 'rotate(180deg)' : 'none', opacity: .7 }}>▾</span>
+              </button>
+
+              {breakdownOpen && (
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {evals.map((e, i) => {
+                    const hasEvidence = e.evidence_quote != null && e.evidence_quote !== '';
+                    const sc = e.competency_score_0_to_100 >= 70 ? '#059669' : e.competency_score_0_to_100 >= 40 ? '#d97706' : '#ef4444';
+                    const coreMiss = e.level === 'CORE' && !hasEvidence;
+
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          border: `1px solid ${coreMiss ? '#fecaca' : hasEvidence ? '#e4e4e7' : '#fde68a'}`,
+                          borderRadius: 10,
+                          padding: '12px 13px',
+                          background: coreMiss ? '#fff8f8' : hasEvidence ? '#fff' : '#fffdf5',
+                        }}
+                      >
+                        {/* Header row */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 7 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#18181b' }}>{e.competency}</span>
+                            <span style={{ fontSize: 8, letterSpacing: '.1em', padding: '1px 5px', borderRadius: 3, background: e.level === 'CORE' ? '#18181b' : '#f4f4f5', color: e.level === 'CORE' ? '#fff' : '#71717a' }}>{e.level}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                            <span style={{ fontSize: 9.5, color: '#a1a1aa', fontFamily: 'var(--font-mono)' }}>{e.weight_percentage}% wt</span>
+                            <span style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 18, color: sc, lineHeight: 1 }}>{e.competency_score_0_to_100}</span>
+                            <span style={{ fontSize: 9.5, color: sc, fontFamily: 'var(--font-mono)' }}>+{e.weighted_points_earned.toFixed(1)}</span>
+                          </div>
+                        </div>
+
+                        {/* Score bar */}
+                        <div style={{ height: 3, borderRadius: 2, background: '#f1f1f2', marginBottom: 9 }}>
+                          <div style={{ height: '100%', width: `${e.competency_score_0_to_100}%`, background: sc, borderRadius: 2 }} />
+                        </div>
+
+                        {/* Evidence */}
+                        {hasEvidence ? (
+                          <blockquote style={{ margin: 0, padding: '8px 11px', background: '#f8f8f9', borderLeft: '2px solid #18181b', borderRadius: '0 7px 7px 0', fontFamily: 'var(--font-mono)', fontSize: 10.5, color: '#374151', lineHeight: 1.6 }}>
+                            &ldquo;{e.evidence_quote}&rdquo;
+                          </blockquote>
+                        ) : coreMiss ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7 }}>
+                            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 2.5l5.5 9.5h-11z" stroke="#ef4444" strokeWidth="1.3" strokeLinejoin="round" /><path d="M8 6.5v2.5M8 10.5v.1" stroke="#ef4444" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                            <span style={{ fontSize: 9.5, letterSpacing: '.1em', color: '#b91c1c', fontFamily: 'var(--font-mono)' }}>NO EVIDENCE FOUND · CORE PENALTY APPLIED</span>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 7 }}>
+                            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 2.5l5.5 9.5h-11z" stroke="#d97706" strokeWidth="1.3" strokeLinejoin="round" /><path d="M8 6.5v2.5M8 10.5v.1" stroke="#d97706" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                            <span style={{ fontSize: 9.5, letterSpacing: '.1em', color: '#92400e', fontFamily: 'var(--font-mono)' }}>NO EVIDENCE FOUND</span>
+                          </div>
+                        )}
+
+                        {/* Reasoning */}
+                        <div style={{ marginTop: 7, fontSize: 10, color: '#a1a1aa', lineHeight: 1.4 }}>{e.reasoning}</div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Math footer */}
+                  <div style={{ border: '1px solid #e4e4e7', borderRadius: 9, padding: '11px 13px', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 9.5, fontFamily: 'var(--font-mono)', color: '#71717a', letterSpacing: '.1em' }}>Σ WEIGHTED POINTS → SCORE</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#52525b' }}>{computedTotal.toFixed(1)} → cap 100 → <strong style={{ fontFamily: 'var(--font-space)', fontSize: 16, color: band.color }}>{c.score}</strong></span>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Gaps */}
-          <div style={{ marginTop: 22 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <span style={{ width: 22, height: 22, borderRadius: 7, background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2.5l5.5 9.5h-11z" stroke="#d97706" strokeWidth="1.4" strokeLinejoin="round" /><path d="M8 6.5v2.2M8 10.4v.1" stroke="#d97706" strokeWidth="1.4" strokeLinecap="round" /></svg>
-                </span>
-                <span style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: '#92400e' }}>Gaps Identified</span>
-              </div>
-              <span style={{ fontSize: 11, color: '#d97706' }}>{c.gaps.length}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {c.gaps.map((gap, i) => (
-                <div key={`gap-${i}`} style={{ display: 'flex', gap: 11, padding: '12px 14px', background: '#fffdf5', border: '1px solid #fde68a', borderRadius: 11 }}>
-                  <span style={{ marginTop: 1, flexShrink: 0, width: 16, height: 16, borderRadius: '50%', background: '#fff', border: '1.5px solid #d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="8" height="8" viewBox="0 0 16 16" fill="none"><path d="M4 8h8" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" /></svg>
-                  </span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: '#18181b' }}>{gap.label}</span>
-                      <span style={{ fontSize: 10, color: '#92400e', background: '#fffbeb', padding: '1.5px 6px', borderRadius: 5, whiteSpace: 'nowrap' }}>{gap.w}% wt</span>
+          {/* Fallback capabilities/gaps for old candidates without evaluations */}
+          {!hasEvals && c.capabilities.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div style={{ fontSize: 10, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 10 }}>CAPABILITIES MATCHED</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {c.capabilities.map((cap, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, padding: '11px 13px', background: '#f6fefb', border: '1px solid #d1fae5', borderRadius: 10 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 500, color: '#18181b' }}>{cap.label}</span>
+                        <span style={{ fontSize: 10, color: '#059669', background: '#ecfdf5', padding: '1.5px 6px', borderRadius: 5 }}>{cap.w}% wt</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#52525b', marginTop: 3 }}>{cap.note}</div>
                     </div>
-                    <div style={{ fontSize: 11.5, color: '#52525b', marginTop: 3, lineHeight: 1.45 }}>{gap.note}</div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* ── BLOCK 4: AI Summary — demoted, collapsible, muted ── */}
+          <div style={{ marginTop: 16, background: '#f9f9fa', borderRadius: 10, border: '1px solid #ececed', overflow: 'hidden' }}>
+            <button
+              onClick={() => setSummaryOpen((o) => !o)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', padding: '11px 14px', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10, color: '#a1a1aa', letterSpacing: '.14em' }}
+            >
+              <span>AI AUDIT SUMMARY (supplementary)</span>
+              <span style={{ transition: 'transform .2s', transform: summaryOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+            </button>
+            {summaryOpen && (
+              <div style={{ padding: '0 14px 14px', borderTop: '1px solid #ececed' }}>
+                {c.aiHead && (
+                  <p style={{ margin: '10px 0 6px', fontSize: 12, color: '#52525b', lineHeight: 1.5, fontWeight: 500 }}>{c.aiHead}</p>
+                )}
+                {c.aiReasoning.map((p, i) => (
+                  <p key={i} style={{ margin: '0 0 6px', fontSize: 12, color: '#71717a', lineHeight: 1.6 }}>{p}</p>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
-            <button style={{ flex: 1, background: '#18181b', color: '#fff', border: 'none', padding: 13, borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer' }}>
+          {/* ── Actions ── */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button style={{ flex: 1, background: '#18181b', color: '#fff', border: 'none', padding: 13, borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer' }}>
               Advance to interview
             </button>
-            <button style={{ background: '#fff', color: '#71717a', border: '1px solid #e4e4e7', padding: '13px 18px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer' }}>
+            <button style={{ background: '#fff', color: '#71717a', border: '1px solid #e4e4e7', padding: '13px 18px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer' }}>
               Hold
             </button>
           </div>
+
         </div>
       </div>
     </>

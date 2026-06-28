@@ -11,6 +11,7 @@ export default async function JobsPage() {
 
   return (
     <JobsDashboard
+      isSuperAdmin={session.user.role === 'SuperAdmin'}
       initialJobs={jobs.map((j) => ({
         id: j.id,
         code: j.code,

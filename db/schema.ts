@@ -101,6 +101,7 @@ export const rubricCompetencies = pgTable('rubric_competencies', {
   level: text('level').notNull().default('IMPORTANT'),
   weight: real('weight').notNull().default(20),
   sortOrder: integer('sort_order').notNull().default(0),
+  mandatory: boolean('mandatory').notNull().default(false),
 });
 
 export const candidates = pgTable('candidates', {
@@ -108,6 +109,7 @@ export const candidates = pgTable('candidates', {
   jobId: uuid('job_id').references(() => jobs.id, { onDelete: 'cascade' }).notNull(),
   name: text('name').notNull().default(''),
   email: text('email'),
+  phone: text('phone'),
   currentRole: text('current_role'),
   location: text('location'),
   experience: text('experience'),
@@ -118,7 +120,17 @@ export const candidates = pgTable('candidates', {
   aiReasoning: jsonb('ai_reasoning').$type<string[]>().default([]),
   capabilities: jsonb('capabilities').$type<{ label: string; note: string; w: number }[]>().default([]),
   gaps: jsonb('gaps').$type<{ label: string; note: string; w: number }[]>().default([]),
+  evaluations: jsonb('evaluations').$type<{
+    competency: string;
+    level: string;
+    weight_percentage: number;
+    evidence_quote: string | null;
+    competency_score_0_to_100: number;
+    weighted_points_earned: number;
+    reasoning: string;
+  }[]>().default([]),
   fileName: text('file_name'),
+  resumeText: text('resume_text'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

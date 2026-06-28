@@ -16,11 +16,19 @@ type Job = {
   isNew?: boolean;
 };
 
-export default function JobsDashboard({ initialJobs }: { initialJobs: Job[] }) {
+export default function JobsDashboard({
+  initialJobs,
+  isSuperAdmin = false,
+}: {
+  initialJobs: Job[];
+  isSuperAdmin?: boolean;
+}) {
   const router = useRouter();
   const [jobs, setJobs] = useState(initialJobs);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const filtered = jobs.filter(
     (j) =>
@@ -32,6 +40,19 @@ export default function JobsDashboard({ initialJobs }: { initialJobs: Job[] }) {
   const handleCreate = (job: Job) => {
     setJobs((prev) => [{ ...job, isNew: true }, ...prev]);
     setShowCreate(false);
+  };
+
+  const handleDelete = async (jobId: string) => {
+    setDeletingId(jobId);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setJobs((prev) => prev.filter((j) => j.id !== jobId));
+      }
+    } finally {
+      setDeletingId(null);
+      setConfirmId(null);
+    }
   };
 
   return (
@@ -84,25 +105,27 @@ export default function JobsDashboard({ initialJobs }: { initialJobs: Job[] }) {
           const badge = active
             ? { color: '#059669', bg: '#ecfdf5', bd: '#a7f3d0' }
             : { color: '#71717a', bg: '#f4f4f5', bd: '#e4e4e7' };
+          const isConfirming = confirmId === job.id;
+          const isDeleting = deletingId === job.id;
 
           return (
             <div
               key={job.id}
-              onClick={() => active && router.push(`/jobs/${job.id}/rubric`)}
+              onClick={() => !isSuperAdmin && active && router.push(`/jobs/${job.id}/rubric`)}
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'auto 1fr auto',
                 gap: 22,
                 alignItems: 'center',
                 background: '#fff',
-                border: `1px solid ${job.isNew ? '#a7f3d0' : '#e4e4e7'}`,
+                border: `1px solid ${isConfirming ? '#fecaca' : job.isNew ? '#a7f3d0' : '#e4e4e7'}`,
                 borderRadius: 16,
                 padding: '20px 24px',
                 transition: 'all .22s cubic-bezier(.22,1,.36,1)',
-                cursor: active ? 'pointer' : 'default',
+                cursor: isSuperAdmin ? 'default' : active ? 'pointer' : 'default',
                 opacity: active ? 1 : 0.64,
               }}
-              className="hover:border-[#d4d4d8] hover:-translate-y-px hover:shadow-lg"
+              className={isSuperAdmin ? '' : 'hover:border-[#d4d4d8] hover:-translate-y-px hover:shadow-lg'}
             >
               {/* Icon tile */}
               <div style={{ width: 46, height: 46, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: active ? '#ecfdf5' : '#f4f4f5' }}>
@@ -116,7 +139,12 @@ export default function JobsDashboard({ initialJobs }: { initialJobs: Job[] }) {
               {/* Identity */}
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, color: '#18181b' }}>{job.title}</span>
+                  <span
+                    style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, color: '#18181b', cursor: active ? 'pointer' : 'default' }}
+                    onClick={(e) => { e.stopPropagation(); if (active) router.push(`/jobs/${job.id}/rubric`); }}
+                  >
+                    {job.title}
+                  </span>
                   <span style={{ fontSize: 9, letterSpacing: '.14em', color: badge.color, background: badge.bg, border: `1px solid ${badge.bd}`, padding: '2px 8px', borderRadius: 5 }}>
                     {job.status.toUpperCase()}
                   </span>
@@ -133,8 +161,8 @@ export default function JobsDashboard({ initialJobs }: { initialJobs: Job[] }) {
                 </div>
               </div>
 
-              {/* Metrics */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 26 }}>
+              {/* Metrics + SuperAdmin actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 20, lineHeight: 1, color: '#18181b', fontVariantNumeric: 'tabular-nums' }}>{job.scored}</div>
                   <div style={{ fontSize: 9.5, letterSpacing: '.14em', color: '#a1a1aa', marginTop: 6 }}>EVALUATED</div>
@@ -147,7 +175,36 @@ export default function JobsDashboard({ initialJobs }: { initialJobs: Job[] }) {
                   </div>
                   <div style={{ fontSize: 9.5, letterSpacing: '.14em', color: '#a1a1aa', marginTop: 6 }}>PROCESSING…</div>
                 </div>
-                <span style={{ fontSize: 16, color: active ? '#059669' : '#e4e4e7', marginLeft: 4 }}>→</span>
+
+                {isSuperAdmin ? (
+                  isConfirming ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                      <span style={{ fontSize: 10, color: '#ef4444', fontFamily: 'var(--font-mono)' }}>Delete job + all candidates?</span>
+                      <button
+                        onClick={() => handleDelete(job.id)}
+                        disabled={isDeleting}
+                        style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
+                      >
+                        {isDeleting ? '…' : 'Confirm'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmId(null)}
+                        style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setConfirmId(job.id); }}
+                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff8f8', color: '#ef4444', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer', letterSpacing: '.06em' }}
+                    >
+                      Delete
+                    </button>
+                  )
+                ) : (
+                  <span style={{ fontSize: 16, color: active ? '#059669' : '#e4e4e7', marginLeft: 4 }}>→</span>
+                )}
               </div>
             </div>
           );

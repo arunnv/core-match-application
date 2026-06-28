@@ -58,17 +58,30 @@ export async function PATCH(request: NextRequest, props: RouteContext<'/api/jobs
 
 export async function DELETE(_req: NextRequest, props: RouteContext<'/api/jobs/[id]'>) {
   const session = await auth();
-  if (!session?.user?.tenantId || !ADMIN_ROLES.has(session.user.role ?? '')) {
+  if (!session?.user?.tenantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await props.params;
+
+  if (session.user.role === 'SuperAdmin') {
+    // Hard delete — cascades to candidates via FK
+    const [deleted] = await db
+      .delete(jobs)
+      .where(and(eq(jobs.id, id), eq(jobs.tenantId, session.user.tenantId)))
+      .returning({ id: jobs.id });
+    if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ id: deleted.id, deleted: true });
+  }
+
+  if (!ADMIN_ROLES.has(session.user.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { id } = await props.params;
-  const [deleted] = await db
+  const [archived] = await db
     .update(jobs)
     .set({ status: 'Archived' })
     .where(and(eq(jobs.id, id), eq(jobs.tenantId, session.user.tenantId)))
     .returning({ id: jobs.id });
 
-  if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json({ id: deleted.id, archived: true });
+  if (!archived) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ id: archived.id, archived: true });
 }

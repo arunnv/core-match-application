@@ -18,6 +18,7 @@ export default async function CandidatesPage(props: PageProps<'/jobs/[id]/candid
     <EvaluationDashboard
       jobId={id}
       jobTitle={job.title}
+      isSuperAdmin={session.user.role === 'SuperAdmin'}
       candidates={rows.map((c) => ({
         id: c.id,
         name: c.name,

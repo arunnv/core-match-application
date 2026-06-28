@@ -15,6 +15,18 @@ const MAIN_ITEMS = [
       </svg>
     ),
   },
+  {
+    href: '/candidates',
+    title: 'All Candidates',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="7.5" cy="6.5" r="2.5" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M2.5 16.5c0-2.2 2.2-4 5-4s5 1.8 5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <circle cx="14" cy="7" r="2" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M14 12.5c2 .5 3 1.5 3 2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
 const ADMIN_ITEM = {

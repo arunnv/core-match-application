@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/db';
 import { candidates } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { getJobById } from '@/lib/queries';
 import { extractText, isAllowedMime } from '@/lib/ai/parse-resume';
 import { scoreCandidate } from '@/lib/ai/scorer';
@@ -51,6 +52,8 @@ export async function POST(req: NextRequest, props: RouteContext<'/api/jobs/[id]
       try {
         console.log(`[upload] extracting text for candidate ${id}`);
         const text = await extractText(buffer, mimeType, fileName);
+        // Persist resume text so SuperAdmin can trigger rescore without re-upload
+        await db.update(candidates).set({ resumeText: text }).where(eq(candidates.id, id));
         console.log(`[upload] extracted ${text.length} chars, scoring...`);
         await scoreCandidate(id, text, jobId);
         console.log(`[upload] scored candidate ${id}`);

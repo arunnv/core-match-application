@@ -30,6 +30,7 @@ export default async function RubricPage(props: PageProps<'/jobs/[id]/rubric'>) 
         level: c.level,
         weight: Number(c.weight),
         sortOrder: c.sortOrder,
+        mandatory: c.mandatory ?? false,
       }))}
     />
   );

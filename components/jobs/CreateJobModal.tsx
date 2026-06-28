@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { createJobRoleAction } from '@/lib/actions/create-job-role';
 
 type Job = {
   id: string;
@@ -56,44 +58,46 @@ function parseJD(text: string) {
 }
 
 export default function CreateJobModal({ onClose, onCreate, existingCount }: Props) {
+  const router = useRouter();
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const [parseText, setParseText] = useState(EXAMPLE_JD);
   const [form, setForm] = useState({ title: '', location: '', experience: '', workMode: 'Remote' as typeof WORK_MODES[number] });
   const [submitting, setSubmitting] = useState(false);
+  const [aiPending, startAiTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const nextCode = `JC#${String(105 + existingCount).padStart(5, '0')}`;
-  const canCreate = mode === 'ai' ? parseText.trim().length > 0 : form.title.trim().length > 0;
+  const isLoading = submitting || aiPending;
+  const canCreate = mode === 'ai' ? parseText.trim().length > 30 : form.title.trim().length > 0;
 
   const handleSubmit = async () => {
-    if (!canCreate || submitting) return;
+    if (!canCreate || isLoading) return;
     setError(null);
 
-    let payload: Record<string, string>;
+    // ── AI mode: single Gemini call → redirect to rubric page ──
     if (mode === 'ai') {
-      const p = parseJD(parseText);
-      if (!p.title) { setError('Could not extract a job title — try manual entry.'); return; }
-      payload = {
-        title: p.title,
-        location: p.loc || 'Remote',
-        experience: p.exp || '',
-        contractDuration: p.contractDuration || '',
-        description: p.description || '',
-        workMode: 'Remote',
-        status: 'Active',
-        code: p.code || nextCode,
-      };
-    } else {
-      if (!form.title.trim()) return;
-      payload = {
-        title: form.title.trim(),
-        location: form.location.trim() || form.workMode,
-        experience: form.experience.trim() || '',
-        workMode: form.workMode,
-        status: 'Active',
-        code: nextCode,
-      };
+      startAiTransition(async () => {
+        const result = await createJobRoleAction(parseText);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        onClose();
+        router.push(`/jobs/${result.jobId}/rubric`);
+      });
+      return;
     }
+
+    // ── Manual mode: plain POST → call onCreate ──
+    if (!form.title.trim()) return;
+    const payload = {
+      title: form.title.trim(),
+      location: form.location.trim() || form.workMode,
+      experience: form.experience.trim() || '',
+      workMode: form.workMode,
+      status: 'Active',
+      code: nextCode,
+    };
 
     setSubmitting(true);
     try {
@@ -144,13 +148,19 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
 
   return (
     <>
-      {/* Scrim */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(24,24,27,.18)', backdropFilter: 'blur(2px)' }} />
-      {/* Modal */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 71, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, pointerEvents: 'none' }}>
-        <div style={{ pointerEvents: 'auto', width: 520, maxWidth: '100%', background: '#fff', border: '1px solid #e4e4e7', borderRadius: 18, boxShadow: '0 34px 70px -28px rgba(24,24,27,.45)', overflow: 'hidden' }} className="animate-rise">
-          {/* Header */}
-          <div style={{ padding: '22px 26px', borderBottom: '1px solid #f1f1f2', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      {/* Backdrop — centres the modal and never scrolls */}
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', padding: '24px' }}
+      >
+        {/* Modal container — stops click propagation so inner clicks don't close */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 560, maxHeight: '90vh', backgroundColor: '#fff', border: '1px solid #e4e4e7', borderRadius: 18, boxShadow: '0 20px 40px rgba(0,0,0,.18)', overflow: 'hidden' }}
+          className="animate-rise"
+        >
+          {/* Header — fixed, never scrolls */}
+          <div style={{ flexShrink: 0, padding: '22px 26px', borderBottom: '1px solid #f1f1f2', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: 11, letterSpacing: '.2em', color: '#a1a1aa', marginBottom: 7 }}>COREMATCH / NEW ROLE</div>
               <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 19, color: '#18181b' }}>Create Job Role</div>
@@ -169,8 +179,8 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
             </div>
           </div>
 
-          {/* Body */}
-          <div style={{ padding: '20px 26px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Body — scrollable */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 26px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
             {mode === 'ai' ? (
               <div>
                 <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 8 }}>PASTE JOB DESCRIPTION OR REQUIREMENT TEXT</div>
@@ -178,11 +188,11 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
                   value={parseText}
                   onChange={(e) => setParseText(e.target.value)}
                   placeholder="Paste a job post, email or requirement spec…"
-                  style={{ width: '100%', height: 228, border: '1px solid #e4e4e7', borderRadius: 12, padding: '14px 15px', fontFamily: 'var(--font-mono)', fontSize: 12.5, lineHeight: 1.62, color: '#27272a', background: '#fafafa', outline: 'none', resize: 'vertical' }}
+                  style={{ width: '100%', minHeight: 180, border: '1px solid #e4e4e7', borderRadius: 12, padding: '14px 15px', fontFamily: 'var(--font-mono)', fontSize: 12.5, lineHeight: 1.62, color: '#27272a', background: '#fafafa', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
                 />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, fontSize: 11, color: '#71717a' }}>
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.6 3.9 4.2.3-3.2 2.7 1 4.1L8 10.9 4.4 12.6l1-4.1L2.2 5.7l4.2-.3z" stroke="#059669" strokeWidth="1.2" strokeLinejoin="round"/></svg>
-                  We'll auto-extract the title, code, location, work mode and experience.
+                  AI extracts metadata + builds rubric in one step. You'll land on the rubric page to review.
                 </div>
               </div>
             ) : (
@@ -230,8 +240,8 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
             )}
           </div>
 
-          {/* Footer */}
-          <div style={{ padding: '18px 26px', borderTop: '1px solid #f1f1f2', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Footer — fixed, never scrolls */}
+          <div style={{ flexShrink: 0, padding: '18px 26px', borderTop: '1px solid #f1f1f2', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 11, color: '#a1a1aa', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }} />
               Created as Active
@@ -240,11 +250,11 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
               <button onClick={onClose} style={{ background: '#fff', color: '#71717a', border: '1px solid #e4e4e7', padding: '11px 16px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer' }}>Cancel</button>
               <button
                 onClick={handleSubmit}
-                disabled={!canCreate || submitting}
-                style={{ border: 'none', padding: '11px 18px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, transition: 'all .2s', background: canCreate && !submitting ? '#18181b' : '#e4e4e7', color: canCreate && !submitting ? '#fff' : '#a1a1aa', cursor: canCreate && !submitting ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 7 }}
+                disabled={!canCreate || isLoading}
+                style={{ border: 'none', padding: '11px 18px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, transition: 'all .2s', background: canCreate && !isLoading ? '#18181b' : '#e4e4e7', color: canCreate && !isLoading ? '#fff' : '#a1a1aa', cursor: canCreate && !isLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 7 }}
               >
-                {submitting && <span className="spin-anim" style={{ width: 11, height: 11, border: '2px solid #52525b', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} />}
-                {submitting ? 'Creating…' : mode === 'ai' ? 'Parse & create role' : 'Create job role'}
+                {isLoading && <span className="spin-anim" style={{ width: 11, height: 11, border: '2px solid #52525b', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} />}
+                {aiPending ? 'AI generating…' : submitting ? 'Creating…' : mode === 'ai' ? 'Parse & create role' : 'Create job role'}
               </button>
             </div>
           </div>

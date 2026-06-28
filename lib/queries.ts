@@ -87,6 +87,34 @@ export async function getAdminStats() {
   };
 }
 
+export async function getAllCandidatesByTenant(tenantId: string) {
+  return db
+    .select({
+      id: candidates.id,
+      name: candidates.name,
+      email: candidates.email,
+      phone: candidates.phone,
+      currentRole: candidates.currentRole,
+      location: candidates.location,
+      experience: candidates.experience,
+      score: candidates.score,
+      tags: candidates.tags,
+      aiHead: candidates.aiHead,
+      status: candidates.status,
+      capabilities: candidates.capabilities,
+      gaps: candidates.gaps,
+      evaluations: candidates.evaluations,
+      createdAt: candidates.createdAt,
+      jobId: jobs.id,
+      jobTitle: jobs.title,
+      jobCode: jobs.code,
+    })
+    .from(candidates)
+    .innerJoin(jobs, eq(candidates.jobId, jobs.id))
+    .where(eq(jobs.tenantId, tenantId))
+    .orderBy(desc(candidates.createdAt));
+}
+
 export async function logAuthentication(params: {
   userId: string;
   ipAddress: string | null;
