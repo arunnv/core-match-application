@@ -61,12 +61,13 @@ export async function createJobRoleAction(jdText: string): Promise<ActionResult>
   const session = await auth();
   if (!session?.user?.tenantId) return { ok: false, error: 'Not authenticated.' };
 
-  // ── 1. Generate next job code from DB ──
-  const [countRow] = await db
-    .select({ count: sql<number>`count(*)` })
+  // ── 1. Generate next job code from DB max (avoids collisions with deleted/archived jobs) ──
+  const [maxRow] = await db
+    .select({ maxCode: sql<string>`max(code)` })
     .from(jobs)
     .where(eq(jobs.tenantId, session.user.tenantId));
-  const nextCode = `JC#${String(100 + Number(countRow?.count ?? 0) + 1).padStart(5, '0')}`;
+  const lastNum = maxRow?.maxCode ? parseInt(maxRow.maxCode.replace('JC#', ''), 10) : 100;
+  const nextCode = `JC#${String((isNaN(lastNum) ? 100 : lastNum) + 1).padStart(5, '0')}`;
 
   // ── 2. Unified Gemini call ──
   const model = genAI.getGenerativeModel({
@@ -147,9 +148,7 @@ ${jdText.slice(0, 4000)}
   const normalisedRubric = normaliseWeights(rubric);
   const workMode = normaliseWorkMode(metadata.workMode);
 
-  // Use extracted job code if it matches format, otherwise use generated one
-  const jobCodeRaw = metadata.jobCode?.trim() ?? '';
-  const jobCode = /^JC#\d+$/.test(jobCodeRaw) ? jobCodeRaw : nextCode;
+  const jobCode = nextCode;
 
   // ── 3. Insert job + rubric atomically ──
   let jobId: string;
