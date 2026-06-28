@@ -86,6 +86,8 @@ export const jobs = pgTable('jobs', {
   location: text('location').notNull().default('Remote'),
   workMode: workModeEnum('work_mode').notNull().default('Remote'),
   experience: text('experience'),
+  contractDuration: text('contract_duration'),
+  description: text('description'),
   status: jobStatusEnum('status').notNull().default('Active'),
   scored: integer('scored').notNull().default(0),
   processing: integer('processing').notNull().default(0),

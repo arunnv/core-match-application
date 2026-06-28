@@ -20,6 +20,10 @@ export default async function RubricPage(props: PageProps<'/jobs/[id]/rubric'>) 
       jobTitle={job.title}
       jobCode={job.code}
       jobLocation={job.location}
+      jobWorkMode={job.workMode}
+      jobExperience={job.experience ?? ''}
+      jobContractDuration={job.contractDuration ?? ''}
+      jobDescription={job.description ?? ''}
       initialCompetencies={competencies.map((c) => ({
         id: c.id,
         name: c.name,

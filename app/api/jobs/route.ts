@@ -10,6 +10,8 @@ const CreateJobSchema = z.object({
   code: z.string().regex(/^JC#\d+$/, 'Code must match JC#NNNNN format'),
   location: z.string().min(1).max(100),
   experience: z.string().max(100).optional(),
+  contractDuration: z.string().max(100).optional(),
+  description: z.string().optional(),
   workMode: z.enum(['Remote', 'Hybrid', 'On-Site']).default('Remote'),
   status: z.enum(['Active', 'Archived', 'Draft']).default('Active'),
   competencies: z.array(z.object({

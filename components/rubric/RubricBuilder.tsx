@@ -32,11 +32,37 @@ type Props = {
   jobTitle: string;
   jobCode: string;
   jobLocation: string;
+  jobWorkMode: string;
+  jobExperience: string;
+  jobContractDuration: string;
+  jobDescription: string;
   initialCompetencies: Competency[];
 };
 
-export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, initialCompetencies }: Props) {
+export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, jobWorkMode, jobExperience, jobContractDuration, jobDescription, initialCompetencies }: Props) {
   const router = useRouter();
+
+  // Job metadata editing state
+  const [meta, setMeta] = useState({ title: jobTitle, code: jobCode, location: jobLocation, workMode: jobWorkMode, experience: jobExperience, contractDuration: jobContractDuration, description: jobDescription });
+  const [editMode, setEditMode] = useState(false);
+  const [editDraft, setEditDraft] = useState(meta);
+  const [metaSaving, setMetaSaving] = useState(false);
+  const [descOpen, setDescOpen] = useState(false);
+
+  const openEdit = () => { setEditDraft(meta); setEditMode(true); };
+  const cancelEdit = () => setEditMode(false);
+  const saveMeta = async () => {
+    setMetaSaving(true);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editDraft),
+      });
+      if (res.ok) { setMeta(editDraft); setEditMode(false); router.refresh(); }
+    } finally { setMetaSaving(false); }
+  };
+
   const [competencies, setCompetencies] = useState<Competency[]>(
     initialCompetencies.length > 0 ? initialCompetencies : DEFAULT_COMPETENCIES
   );
@@ -179,15 +205,96 @@ export default function RubricBuilder({ jobId, jobTitle, jobCode, jobLocation, i
 
   return (
     <div style={{ maxWidth: 1180, padding: '80px 48px 80px 96px' }} className="animate-rise">
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, marginBottom: 8 }}>
-        <div>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, marginBottom: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, letterSpacing: '.22em', color: '#a1a1aa', marginBottom: 14 }}>JOB ROLE / RUBRIC BUILDER</div>
-          <h1 style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 46, lineHeight: 1.02, letterSpacing: '-.02em', margin: 0 }} dangerouslySetInnerHTML={{ __html: jobTitle.replace(/\s(\S+)$/, ' <span style="font-weight:600">$1</span>') }} />
-          <div style={{ display: 'flex', gap: 18, marginTop: 18, fontSize: 12, color: '#71717a' }}>
-            <span>{jobLocation}</span><span style={{ color: '#d4d4d8' }}>·</span><span>Req #{jobCode}</span>
-          </div>
+
+          {editMode ? (
+            /* ── EDIT FORM (Turbo-frame equivalent) ── */
+            <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(24,24,27,.06)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                {([
+                  { label: 'JOB TITLE', key: 'title', span: true },
+                  { label: 'JOB CODE', key: 'code' },
+                  { label: 'LOCATION', key: 'location' },
+                  { label: 'EXPERIENCE', key: 'experience' },
+                  { label: 'CONTRACT DURATION', key: 'contractDuration' },
+                ] as { label: string; key: keyof typeof editDraft; span?: boolean }[]).map(({ label, key, span }) => (
+                  <div key={key} style={{ gridColumn: span ? '1 / -1' : undefined }}>
+                    <div style={{ fontSize: 9, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 5 }}>{label}</div>
+                    <input
+                      value={editDraft[key]}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, [key]: e.target.value }))}
+                      style={{ width: '100%', border: '1px solid #e4e4e7', borderRadius: 8, padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: 12.5, color: '#18181b', background: '#fafafa', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 9, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 5 }}>ROLE DESCRIPTION</div>
+                <textarea
+                  value={editDraft.description}
+                  onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                  rows={5}
+                  style={{ width: '100%', border: '1px solid #e4e4e7', borderRadius: 8, padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: 12, color: '#18181b', background: '#fafafa', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button onClick={cancelEdit} style={{ padding: '8px 16px', borderRadius: 9, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={saveMeta} disabled={metaSaving} style={{ padding: '8px 18px', borderRadius: 9, border: 'none', background: '#18181b', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: metaSaving ? 'not-allowed' : 'pointer', opacity: metaSaving ? .6 : 1 }}>
+                  {metaSaving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ── READ STATE ── */
+            <>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <h1 style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 'clamp(28px,3.5vw,46px)', lineHeight: 1.02, letterSpacing: '-.02em', margin: 0 }}
+                  dangerouslySetInnerHTML={{ __html: meta.title.replace(/\s(\S+)$/, ' <span style="font-weight:600">$1</span>') }}
+                />
+                <button onClick={openEdit} style={{ marginTop: 6, flexShrink: 0, padding: '4px 10px', border: '1px solid #e4e4e7', borderRadius: 7, background: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: '#71717a', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  EDIT INFO
+                </button>
+              </div>
+
+              {/* Metadata strip */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0, marginTop: 16, fontFamily: 'var(--font-mono)', fontSize: 11, color: '#71717a' }}>
+                {[
+                  meta.location,
+                  `Req #${meta.code}`,
+                  meta.experience ? `Exp: ${meta.experience}` : null,
+                  meta.contractDuration ? `Duration: ${meta.contractDuration}` : null,
+                ].filter(Boolean).map((item, i, arr) => (
+                  <span key={i} style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ padding: '3px 10px', background: '#f4f4f5', border: '1px solid #e4e4e7', borderRadius: 6 }}>{item}</span>
+                    {i < arr.length - 1 && <span style={{ color: '#d4d4d8', margin: '0 6px', fontSize: 14 }}>·</span>}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── Collapsible description ── */}
+          {!editMode && (
+            <div style={{ marginTop: 14 }}>
+              <button
+                onClick={() => setDescOpen((o) => !o)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px dashed #d4d4d8', borderRadius: 7, padding: '5px 12px', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: '#a1a1aa', cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 12, lineHeight: 1 }}>{descOpen ? '−' : '+'}</span>
+                {descOpen ? 'HIDE ROLE DESCRIPTION' : 'VIEW ROLE DESCRIPTION'}
+              </button>
+              {descOpen && (
+                <div style={{ marginTop: 10, padding: '14px 16px', border: '1px dashed #e4e4e7', borderRadius: 10, background: '#fafafa', fontSize: 12.5, lineHeight: 1.7, color: '#52525b', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', maxHeight: 240, overflowY: 'auto' }}>
+                  {meta.description || <span style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No description added yet. Click EDIT INFO to add one.</span>}
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
         <div style={{ textAlign: 'right', flexShrink: 0, paddingTop: 28 }}>
           <div style={{ fontSize: 11, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 6 }}>RUBRIC TOTAL</div>
           <div style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 40, lineHeight: 1, color: '#059669' }}>100<span style={{ fontSize: 20 }}>%</span></div>

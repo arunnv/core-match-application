@@ -42,11 +42,16 @@ function parseJD(text: string) {
     const first = text.split('\n').map((s) => s.trim()).filter(Boolean)[0] ?? '';
     title = first.replace(/[^\x20-\x7E]+/g, '').replace(/Hiring Now\s*\|?/i, '').trim();
   }
+  // Extract body text after "About the Role" as description
+  const descMatch = text.match(/About the Role\s*\n([\s\S]+)/i);
+  const description = descMatch ? descMatch[1].trim() : '';
   return {
     title,
     code: grab(/Job Code:\s*(JC#\d+)/i) || grab(/(JC#\d+)/),
     loc: grab(/Location:\s*(.+)/i),
     exp: grab(/Experience Required:\s*(.+)/i),
+    contractDuration: grab(/Contract Duration:\s*(.+)/i),
+    description,
   };
 }
 
@@ -72,6 +77,8 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
         title: p.title,
         location: p.loc || 'Remote',
         experience: p.exp || '',
+        contractDuration: p.contractDuration || '',
+        description: p.description || '',
         workMode: 'Remote',
         status: 'Active',
         code: p.code || nextCode,
