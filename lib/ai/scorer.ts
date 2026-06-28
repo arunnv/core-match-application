@@ -76,7 +76,7 @@ export async function scoreCandidate(candidateId: string, resumeText: string, jo
     const jobDescription = job?.description ? `\nJOB DESCRIPTION:\n${job.description.slice(0, 1200)}` : '';
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-pro',
       generationConfig: { responseMimeType: 'application/json' },
     });
 
