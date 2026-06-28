@@ -59,4 +59,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-CMD ["node", "server.js"]
+# Run migrations then start the server
+CMD ["sh", "-c", "npx drizzle-kit migrate && node server.js"]
