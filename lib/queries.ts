@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { jobs, rubricCompetencies, candidates, tenants, users, systemSettings } from '@/db/schema';
+import { jobs, rubricCompetencies, candidates, tenants, users, systemSettings, authenticationLogs } from '@/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 
 export async function getJobsByTenant(tenantId: string) {
@@ -85,4 +85,36 @@ export async function getAdminStats() {
     totalUsers: Number(userCount?.count ?? 0),
     totalEvaluations: Number(candidateCount?.count ?? 0),
   };
+}
+
+export async function logAuthentication(params: {
+  userId: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  authMethod: string;
+  status: 'Success' | 'Failed';
+}) {
+  await db.insert(authenticationLogs).values({
+    userId: params.userId,
+    ipAddress: params.ipAddress,
+    userAgent: params.userAgent,
+    authMethod: params.authMethod,
+    status: params.status,
+  });
+}
+
+export async function getAuthLogsByUser(userId: string, limit = 15) {
+  return db
+    .select({
+      id: authenticationLogs.id,
+      ipAddress: authenticationLogs.ipAddress,
+      userAgent: authenticationLogs.userAgent,
+      authMethod: authenticationLogs.authMethod,
+      status: authenticationLogs.status,
+      createdAt: authenticationLogs.createdAt,
+    })
+    .from(authenticationLogs)
+    .where(eq(authenticationLogs.userId, userId))
+    .orderBy(desc(authenticationLogs.createdAt))
+    .limit(limit);
 }

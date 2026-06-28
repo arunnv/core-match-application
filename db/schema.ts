@@ -126,3 +126,13 @@ export const systemSettings = pgTable('system_settings', {
   value: text('value').notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+export const authenticationLogs = pgTable('authentication_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  authMethod: text('auth_method').notNull(), // 'Email' | 'Google SSO'
+  status: text('status').notNull(),           // 'Success' | 'Failed'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

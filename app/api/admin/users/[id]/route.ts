@@ -4,12 +4,23 @@ import { db } from '@/db';
 import { users } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { getAuthLogsByUser } from '@/lib/queries';
 
 const ADMIN_ROLES = new Set(['SuperAdmin', 'TenantAdmin']);
 
 const ToggleUserSchema = z.object({
   enabled: z.boolean(),
 });
+
+export async function GET(_req: NextRequest, props: RouteContext<'/api/admin/users/[id]'>) {
+  const session = await auth();
+  if (!session?.user || !ADMIN_ROLES.has(session.user.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  const { id } = await props.params;
+  const logs = await getAuthLogsByUser(id, 15);
+  return NextResponse.json({ logs });
+}
 
 export async function PATCH(request: NextRequest, props: RouteContext<'/api/admin/users/[id]'>) {
   const session = await auth();

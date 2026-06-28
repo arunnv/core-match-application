@@ -8,6 +8,7 @@ import { db } from '@/db';
 import { users, accounts, sessions, verificationTokens, tenants } from '@/db/schema';
 import type { DefaultSession } from 'next-auth';
 import { authConfig } from '@/auth.config';
+import { logAuthentication } from '@/lib/queries';
 
 declare module 'next-auth' {
   interface Session {
@@ -37,9 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
       authorization: {
-        params: {
-          prompt: 'select_account',
-        },
+        params: { prompt: 'select_account' },
       },
     }),
     Credentials({
@@ -47,8 +46,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          ?? request.headers.get('x-real-ip')
+          ?? null;
+        const ua = request.headers.get('user-agent') ?? null;
 
         const [user] = await db
           .select()
@@ -56,13 +60,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .where(eq(users.email, credentials.email as string))
           .limit(1);
 
-        if (!user || !user.passwordHash) return null;
-        if (!user.enabled) return null;
+        if (!user || !user.passwordHash || !user.enabled) {
+          // Log failed attempt if we found a user account
+          if (user?.id) {
+            void logAuthentication({ userId: user.id, ipAddress: ip, userAgent: ua, authMethod: 'Email', status: 'Failed' });
+          }
+          return null;
+        }
 
         const valid = await bcrypt.compare(credentials.password as string, user.passwordHash);
-        if (!valid) return null;
+        if (!valid) {
+          void logAuthentication({ userId: user.id, ipAddress: ip, userAgent: ua, authMethod: 'Email', status: 'Failed' });
+          return null;
+        }
 
         await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
+        void logAuthentication({ userId: user.id, ipAddress: ip, userAgent: ua, authMethod: 'Email', status: 'Success' });
 
         return {
           id: user.id,
@@ -77,7 +90,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user, account }) {
-      // Only query DB on sign-in (when user object is present)
       if (user?.id || account) {
         const userId = user?.id ?? (token.id as string | undefined);
         if (userId) {
@@ -94,6 +106,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.id = dbUser.id;
             token.role = dbUser.role ?? 'Recruiter';
             token.tenantId = tenantId ?? null;
+
+            // Log Google SSO sign-in (account present = OAuth flow)
+            if (account?.provider === 'google') {
+              void logAuthentication({
+                userId: dbUser.id,
+                ipAddress: null,
+                userAgent: null,
+                authMethod: 'Google SSO',
+                status: 'Success',
+              });
+            }
           }
         }
       }

@@ -1,9 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 type User = { id: string; name: string; role: string; lastLogin: string; credits: number; enabled: boolean };
+
+type AuthLog = {
+  id: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  authMethod: string;
+  status: string;
+  createdAt: string;
+};
 
 export default function AdminUsers({
   initialUsers,
@@ -16,6 +25,18 @@ export default function AdminUsers({
 }) {
   const [users, setUsers] = useState(initialUsers);
   const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [authLogs, setAuthLogs] = useState<AuthLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!drawerId) { setAuthLogs([]); return; }
+    setLogsLoading(true);
+    fetch(`/api/admin/users/${drawerId}`)
+      .then((r) => r.json())
+      .then((data: { logs: AuthLog[] }) => setAuthLogs(data.logs ?? []))
+      .catch(() => setAuthLogs([]))
+      .finally(() => setLogsLoading(false));
+  }, [drawerId]);
 
   const toggleUser = async (id: string) => {
     const user = users.find((u) => u.id === id);
@@ -39,6 +60,21 @@ export default function AdminUsers({
   const maxCredits = Math.max(...users.map((u) => u.credits), 1);
   const formatNumber = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
 
+  const fmtTs = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ' +
+      d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const fmtUA = (ua: string | null) => {
+    if (!ua) return '—';
+    if (/chrome/i.test(ua)) return 'Chrome';
+    if (/safari/i.test(ua)) return 'Safari';
+    if (/firefox/i.test(ua)) return 'Firefox';
+    if (/edge/i.test(ua)) return 'Edge';
+    return 'Browser';
+  };
+
   return (
     <>
       <style>{`
@@ -52,6 +88,8 @@ export default function AdminUsers({
         .au-table-head { display: grid; grid-template-columns: 1.4fr 1fr 100px 110px 90px 70px; gap: 12px; padding: 10px 0; border-bottom: 2px solid #e4e4e7; font-size: 9px; letter-spacing: .12em; color: #a1a1aa; font-weight: 500; }
         .au-table-row { display: grid; grid-template-columns: 1.4fr 1fr 100px 110px 90px 70px; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f1f2; cursor: pointer; }
         .au-card { background: #fff; border: 1px solid #e4e4e7; border-radius: 14px; padding: 18px; box-shadow: 0 1px 2px rgba(24,24,27,.04); }
+        .log-row { display: grid; grid-template-columns: 90px 1fr 70px 52px; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid #f4f4f5; }
+        .log-row:last-child { border-bottom: none; }
 
         @media (min-width: 640px) {
           .au-wrap { padding: 72px 24px 80px; }
@@ -170,20 +208,82 @@ export default function AdminUsers({
       {drawerUser && (
         <>
           <div onClick={() => setDrawerId(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(24,24,27,.14)', backdropFilter: 'blur(1.5px)' }} />
-          <div className="cm-scroll" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 61, width: 'min(420px, 100vw)', background: '#fff', borderLeft: '1px solid #e4e4e7', boxShadow: '-30px 0 60px -30px rgba(24,24,27,.3)', overflowY: 'auto' }}>
-            <div style={{ position: 'sticky', top: 0, background: 'rgba(255,255,255,.9)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #f1f1f2', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="cm-scroll" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 61, width: 'min(440px, 100vw)', background: '#fff', borderLeft: '1px solid #e4e4e7', boxShadow: '-30px 0 60px -30px rgba(24,24,27,.3)', overflowY: 'auto' }}>
+            {/* Drawer header */}
+            <div style={{ position: 'sticky', top: 0, background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #f1f1f2', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 }}>
               <div style={{ fontSize: 11, letterSpacing: '.2em', color: '#a1a1aa' }}>USER ACCOUNT</div>
               <button onClick={() => setDrawerId(null)} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>✕</button>
             </div>
+
             <div style={{ padding: '20px 20px 40px' }}>
+              {/* Identity */}
               <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 20, color: '#18181b', marginBottom: 4 }}>{drawerUser.name}</div>
               <div style={{ fontSize: 12, color: '#a1a1aa', marginBottom: 20 }}>{drawerUser.role}</div>
+
+              {/* Stats */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 0', borderTop: '1px solid #f1f1f2', borderBottom: '1px solid #f1f1f2' }}>
-                <div><span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>LAST LOGIN</span><div style={{ fontSize: 13, color: '#18181b', marginTop: 4 }}>{drawerUser.lastLogin}</div></div>
-                <div><span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>LIFETIME CREDITS</span><div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 20, color: '#18181b', marginTop: 4 }}>{drawerUser.credits.toLocaleString()}</div></div>
-                <div><span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>ACCOUNT STATUS</span><div style={{ fontSize: 13, color: '#18181b', marginTop: 4 }}>{drawerUser.enabled ? 'Active' : 'Suspended'}</div></div>
+                <div>
+                  <span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>LAST LOGIN</span>
+                  <div style={{ fontSize: 13, color: '#18181b', marginTop: 4 }}>{drawerUser.lastLogin}</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>LIFETIME CREDITS</span>
+                  <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 20, color: '#18181b', marginTop: 4 }}>{drawerUser.credits.toLocaleString()}</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>ACCOUNT STATUS</span>
+                  <div style={{ fontSize: 13, color: '#18181b', marginTop: 4 }}>{drawerUser.enabled ? 'Active' : 'Suspended'}</div>
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 24 }}>
+
+              {/* ── LOGIN HISTORY ── */}
+              <div style={{ marginTop: 20, paddingBottom: 20, borderBottom: '1px solid #f1f1f2' }}>
+                <div style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em', marginBottom: 10 }}>LOGIN HISTORY</div>
+
+                {logsLoading ? (
+                  <div style={{ fontSize: 11, color: '#a1a1aa', padding: '12px 0' }}>Loading…</div>
+                ) : authLogs.length === 0 ? (
+                  <div style={{ fontSize: 11, color: '#a1a1aa', padding: '12px 0' }}>No login events recorded yet.</div>
+                ) : (
+                  <div style={{ maxHeight: 192, overflowY: 'auto' }}>
+                    {/* Column headers */}
+                    <div className="log-row" style={{ borderBottom: '1px solid #e4e4e7', paddingBottom: 6, marginBottom: 2 }}>
+                      {['TIMESTAMP', 'IP ADDRESS', 'METHOD', 'STATUS'].map((h) => (
+                        <div key={h} style={{ fontSize: 8.5, letterSpacing: '.1em', color: '#a1a1aa', fontWeight: 500 }}>{h}</div>
+                      ))}
+                    </div>
+                    {authLogs.map((log) => (
+                      <div key={log.id} className="log-row">
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#52525b', whiteSpace: 'nowrap' }}>
+                          {fmtTs(log.createdAt)}
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#71717a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {log.ipAddress ?? '—'}
+                        </div>
+                        <div style={{ fontSize: 10, color: '#52525b' }}>
+                          {log.authMethod === 'Google SSO'
+                            ? <span style={{ color: '#2563eb' }}>Google</span>
+                            : <span style={{ color: '#71717a' }}>{fmtUA(log.userAgent)}</span>}
+                        </div>
+                        <div>
+                          <span style={{
+                            fontSize: 8.5, letterSpacing: '.08em', fontWeight: 500,
+                            color: log.status === 'Success' ? '#059669' : '#dc2626',
+                            background: log.status === 'Success' ? '#ecfdf5' : '#fef2f2',
+                            border: `1px solid ${log.status === 'Success' ? '#a7f3d0' : '#fecaca'}`,
+                            padding: '2px 6px', borderRadius: 4,
+                          }}>
+                            {log.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
                 <button
                   onClick={() => void toggleUser(drawerUser.id)}
                   style={{ width: '100%', padding: 13, borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 13, cursor: 'pointer', border: 'none', background: drawerUser.enabled ? '#fee2e2' : '#ecfdf5', color: drawerUser.enabled ? '#991b1b' : '#065f46', fontWeight: 500 }}
