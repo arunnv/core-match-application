@@ -35,6 +35,8 @@ export default async function AllCandidatesPage() {
         jobId: c.jobId,
         jobTitle: c.jobTitle,
         jobCode: c.jobCode,
+        resumeUrl: c.resumeUrl ?? null,
+        sourceEmail: c.sourceEmail as { sender: string; subject: string; bodyHtml: string; receivedAt: string } | null ?? null,
       }))}
       jobs={jobs.map((j) => ({
         id: j.id,

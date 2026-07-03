@@ -92,6 +92,8 @@ type Candidate = {
   jobId: string | null;
   jobTitle: string | null;
   jobCode: string | null;
+  resumeUrl: string | null;
+  sourceEmail: { sender: string; subject: string; bodyHtml: string; receivedAt: string } | null;
 };
 
 type Job = {
@@ -749,44 +751,95 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                       </div>
                     )}
 
-                    <div style={{ fontSize: 9, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 12 }}>MATCH ACROSS ALL ROLES</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-                      {jobs.map((j) => {
-                        const isMatch = c.jobId === j.id;
-                        const s = isMatch ? c.score : null;
-                        return (
-                          <div key={j.id} style={{ border: `1px solid ${s !== null && s >= 88 ? '#a7f3d0' : s !== null && s >= 70 ? '#bfdbfe' : '#ececed'}`, borderRadius: 12, padding: '14px 16px', background: s !== null && s >= 88 ? '#f0fdf4' : s !== null && s >= 70 ? '#f8fbff' : '#fff' }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
-                              <div>
-                                <div style={{ fontSize: 12.5, fontWeight: 600, color: '#18181b', marginBottom: 2 }}>{j.title}</div>
-                                <div style={{ fontSize: 10, color: '#a1a1aa' }}>{j.code}<span style={{ color: '#d4d4d8' }}> · </span>{j.location}</div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                                {s !== null && <span style={bandStyle(s)}>{bandLabel(s)}</span>}
-                                <span style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 24, lineHeight: 1, color: s !== null ? scoreColor(s) : '#d4d4d8' }}>{s !== null ? s : '—'}</span>
-                              </div>
-                            </div>
-                            {s !== null && (
-                              <>
-                                <div style={{ height: 6, borderRadius: 3, background: '#ececed' }}>
-                                  <div style={{ height: '100%', width: `${s}%`, background: barColor(s), borderRadius: 3 }} />
-                                </div>
-                                {isMatch && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
-                                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6l2.5 2.5L10 3.5" stroke="#059669" strokeWidth="1.6" strokeLinecap="round" /></svg>
-                                    <span style={{ fontSize: 10, color: '#059669' }}>Evaluated for this role</span>
-                                  </div>
-                                )}
-                              </>
-                            )}
+                    {!c.jobId ? (
+                      /* ── Unmatched candidate view ── */
+                      <div style={{ marginBottom: 24 }}>
+                        {/* No matching job banner */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, marginBottom: 20 }}>
+                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2.5l5.5 9.5h-11z" stroke="#d97706" strokeWidth="1.3" strokeLinejoin="round"/><path d="M8 6.5v2.5M8 10.5v.1" stroke="#d97706" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                          <div>
+                            <div style={{ fontSize: 10, letterSpacing: '.12em', color: '#92400e', fontFamily: 'var(--font-mono)' }}>NO MATCHING JOB FOUND</div>
+                            <div style={{ fontSize: 10.5, color: '#b45309', marginTop: 2 }}>This candidate was not matched to any open role. Assign them manually or re-ingest with a matching job title.</div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
 
-                    {/* Evaluation breakdown */}
-                    {c.evaluations.length > 0 && (
-                      <EvalBreakdown evaluations={c.evaluations} score={c.score} />
+                        {/* Source email */}
+                        {c.sourceEmail && (
+                          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
+                            <div style={{ padding: '10px 14px', borderBottom: '1px solid #bae6fd', fontSize: 9, letterSpacing: '.16em', color: '#0369a1', fontFamily: 'var(--font-mono)' }}>SOURCE EMAIL</div>
+                            <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div style={{ display: 'flex', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                                <span style={{ color: '#0369a1', minWidth: 56 }}>FROM</span>
+                                <span style={{ color: '#18181b' }}>{c.sourceEmail.sender}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                                <span style={{ color: '#0369a1', minWidth: 56 }}>SUBJECT</span>
+                                <span style={{ color: '#18181b' }}>{c.sourceEmail.subject}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                                <span style={{ color: '#0369a1', minWidth: 56 }}>RECEIVED</span>
+                                <span style={{ color: '#71717a' }}>{new Date(c.sourceEmail.receivedAt).toUTCString()}</span>
+                              </div>
+                              {c.sourceEmail.bodyHtml && (
+                                <div style={{ marginTop: 8, padding: '10px 12px', background: '#fff', borderRadius: 8, border: '1px solid #e0f2fe', fontSize: 11.5, color: '#334155', lineHeight: 1.6, maxHeight: 200, overflowY: 'auto' }}
+                                  dangerouslySetInnerHTML={{ __html: c.sourceEmail.bodyHtml }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Resume download */}
+                        {c.resumeUrl && (
+                          <a href={c.resumeUrl} download style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 18px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, color: '#1d4ed8', fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '.06em', textDecoration: 'none' }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="#1d4ed8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13h12" stroke="#1d4ed8" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                            Download Attached Resume
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      /* ── Matched candidate: jobs list ── */
+                      <>
+                        <div style={{ fontSize: 9, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 12 }}>MATCH ACROSS ALL ROLES</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+                          {jobs.map((j) => {
+                            const isMatch = c.jobId === j.id;
+                            const s = isMatch ? c.score : null;
+                            return (
+                              <div key={j.id} style={{ border: `1px solid ${s !== null && s >= 88 ? '#a7f3d0' : s !== null && s >= 70 ? '#bfdbfe' : '#ececed'}`, borderRadius: 12, padding: '14px 16px', background: s !== null && s >= 88 ? '#f0fdf4' : s !== null && s >= 70 ? '#f8fbff' : '#fff' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                                  <div>
+                                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#18181b', marginBottom: 2 }}>{j.title}</div>
+                                    <div style={{ fontSize: 10, color: '#a1a1aa' }}>{j.code}<span style={{ color: '#d4d4d8' }}> · </span>{j.location}</div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                    {s !== null && <span style={bandStyle(s)}>{bandLabel(s)}</span>}
+                                    <span style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 24, lineHeight: 1, color: s !== null ? scoreColor(s) : '#d4d4d8' }}>{s !== null ? s : '—'}</span>
+                                  </div>
+                                </div>
+                                {s !== null && (
+                                  <>
+                                    <div style={{ height: 6, borderRadius: 3, background: '#ececed' }}>
+                                      <div style={{ height: '100%', width: `${s}%`, background: barColor(s), borderRadius: 3 }} />
+                                    </div>
+                                    {isMatch && (
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
+                                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6l2.5 2.5L10 3.5" stroke="#059669" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                                        <span style={{ fontSize: 10, color: '#059669' }}>Evaluated for this role</span>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Evaluation breakdown */}
+                        {c.evaluations.length > 0 && (
+                          <EvalBreakdown evaluations={c.evaluations} score={c.score} />
+                        )}
+                      </>
                     )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>

@@ -108,6 +108,8 @@ export async function getAllCandidatesByTenant(tenantId: string) {
       jobId: candidates.jobId,
       jobTitle: jobs.title,
       jobCode: jobs.code,
+      resumeUrl: candidates.resumeUrl,
+      sourceEmail: candidates.sourceEmail,
     })
     .from(candidates)
     .leftJoin(jobs, eq(candidates.jobId, jobs.id))
