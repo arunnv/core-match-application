@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { jobs, rubricCompetencies, candidates, tenants, users, systemSettings, authenticationLogs } from '@/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, or, isNull } from 'drizzle-orm';
 
 export async function getJobsByTenant(tenantId: string) {
   return db.select().from(jobs).where(eq(jobs.tenantId, tenantId)).orderBy(desc(jobs.createdAt));
@@ -105,13 +105,13 @@ export async function getAllCandidatesByTenant(tenantId: string) {
       gaps: candidates.gaps,
       evaluations: candidates.evaluations,
       createdAt: candidates.createdAt,
-      jobId: jobs.id,
+      jobId: candidates.jobId,
       jobTitle: jobs.title,
       jobCode: jobs.code,
     })
     .from(candidates)
-    .innerJoin(jobs, eq(candidates.jobId, jobs.id))
-    .where(eq(jobs.tenantId, tenantId))
+    .leftJoin(jobs, eq(candidates.jobId, jobs.id))
+    .where(or(eq(jobs.tenantId, tenantId), isNull(candidates.jobId)))
     .orderBy(desc(candidates.createdAt));
 }
 

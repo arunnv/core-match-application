@@ -89,7 +89,7 @@ type Candidate = {
   aiHead: string;
   status: string | null;
   evaluations: EvaluationRow[];
-  jobId: string;
+  jobId: string | null;
   jobTitle: string | null;
   jobCode: string | null;
 };
@@ -511,6 +511,7 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                       <span style={bandStyle(c.score)}>{bandLabel(c.score)}</span>
                       {inPipe && <span style={{ fontSize: 9, letterSpacing: '.1em', color: '#0369a1', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '2px 6px', borderRadius: 5 }}>IN PIPELINE</span>}
                       {isStarred && <span style={{ fontSize: 9, letterSpacing: '.1em', color: '#d97706', background: '#fffbeb', border: '1px solid #fcd34d', padding: '2px 6px', borderRadius: 5 }}>★ SHORTLISTED</span>}
+                      {!c.jobId && <span style={{ fontSize: 9, letterSpacing: '.1em', color: '#92400e', background: '#fff7ed', border: '1px solid #fed7aa', padding: '2px 6px', borderRadius: 5 }}>NO MATCHING JOB</span>}
                     </div>
                     <div style={{ fontSize: 11.5, color: '#71717a', marginBottom: 5 }}>
                       {c.currentRole}<span style={{ color: '#d4d4d8' }}> · </span>{c.location}<span style={{ color: '#d4d4d8' }}> · </span>{c.experience}
@@ -540,7 +541,7 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                   <div className="cm-listscores cm-hidem" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <div style={{ background: '#fafafa', border: `1px solid ${c.score >= 88 ? '#a7f3d0' : c.score >= 70 ? '#bfdbfe' : c.score >= 50 ? '#fcd34d' : '#fecaca'}`, borderRadius: 10, padding: '10px 12px', width: 96, flexShrink: 0 }}>
                       <div style={{ fontSize: 8.5, letterSpacing: '.1em', color: scoreColor(c.score), marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {c.jobCode ?? c.jobTitle ?? 'Role'}
+                        {c.jobCode ?? c.jobTitle ?? 'Unassigned'}
                       </div>
                       <div style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 18, lineHeight: 1, color: scoreColor(c.score) }}>{c.score}</div>
                       <div style={{ height: 3, borderRadius: 2, background: '#f1f1f2', marginTop: 6, width: '100%' }}>
@@ -557,7 +558,7 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                           <span style={{ fontSize: 10, color: '#ef4444', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>Delete candidate?</span>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
-                              onClick={() => handleDeleteCandidate(c.id, c.jobId)}
+                              onClick={() => handleDeleteCandidate(c.id, c.jobId ?? '')}
                               disabled={deletingId === c.id}
                               style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
                             >
@@ -596,7 +597,7 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                           {isStarred ? 'Shortlisted' : 'Shortlist'}
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); router.push(`/jobs/${c.jobId}/rubric`); }}
+                          onClick={(e) => { e.stopPropagation(); if (c.jobId) router.push(`/jobs/${c.jobId}/rubric`); }}
                           style={{ border: '1px solid #e4e4e7', background: 'transparent', padding: '5px 11px', borderRadius: 8, fontFamily: 'var(--font-mono)', fontSize: 11, color: '#52525b', cursor: 'pointer', whiteSpace: 'nowrap' }}
                         >
                           Profile <span style={{ color: '#059669' }}>→</span>
@@ -795,10 +796,10 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                       <button style={{ padding: 12, borderRadius: 11, border: '1.5px solid #e4e4e7', background: '#fff', color: '#52525b', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer' }}>Schedule Interview</button>
                     </div>
                     <button
-                      onClick={() => router.push(`/jobs/${c.jobId}/rubric`)}
-                      style={{ width: '100%', padding: 11, borderRadius: 11, border: '1px solid #f1f1f2', background: '#f8f8f9', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer' }}
+                      onClick={() => { if (c.jobId) router.push(`/jobs/${c.jobId}/rubric`); }}
+                      style={{ width: '100%', padding: 11, borderRadius: 11, border: '1px solid #f1f1f2', background: '#f8f8f9', color: c.jobId ? '#71717a' : '#d4d4d8', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: c.jobId ? 'pointer' : 'default' }}
                     >
-                      View Full Rubric Evaluation →
+                      {c.jobId ? 'View Full Rubric Evaluation →' : 'No job role assigned'}
                     </button>
                   </>
                 );

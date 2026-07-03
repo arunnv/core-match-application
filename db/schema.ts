@@ -106,7 +106,7 @@ export const rubricCompetencies = pgTable('rubric_competencies', {
 
 export const candidates = pgTable('candidates', {
   id: uuid('id').primaryKey().defaultRandom(),
-  jobId: uuid('job_id').references(() => jobs.id, { onDelete: 'cascade' }).notNull(),
+  jobId: uuid('job_id').references(() => jobs.id, { onDelete: 'set null' }),
   name: text('name').notNull().default(''),
   email: text('email'),
   phone: text('phone'),
