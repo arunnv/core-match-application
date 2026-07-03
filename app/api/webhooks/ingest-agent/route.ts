@@ -167,14 +167,18 @@ export async function POST(req: NextRequest) {
     console.error('[ingest-agent] file save failed:', err);
   }
 
-  // ── Extract text + score asynchronously ──
+  // ── Extract text + score asynchronously (only if assigned to a job) ──
   after(async () => {
     try {
       const text = await extractText(fileBuffer, mimeType, fileName);
       await db.update(candidates).set({ resumeText: text }).where(eq(candidates.id, candidateId));
-      await scoreCandidate(candidateId, text, jobId!);
+      if (jobId) {
+        await scoreCandidate(candidateId, text, jobId);
+      } else {
+        await db.update(candidates).set({ status: 'unmatched' }).where(eq(candidates.id, candidateId));
+      }
     } catch (err) {
-      console.error(`[ingest-agent] scoring failed for ${candidateId}:`, err);
+      console.error(`[ingest-agent] post-processing failed for ${candidateId}:`, err);
     }
   });
 
