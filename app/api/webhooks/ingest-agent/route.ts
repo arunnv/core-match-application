@@ -141,6 +141,22 @@ export async function POST(req: NextRequest) {
   }
 
   if (!jobId) {
+    // Fall back to the catch-all "General Applications" job if configured
+    const fallbackJobId = process.env.FALLBACK_JOB_ID ?? null;
+    if (fallbackJobId) {
+      jobId = fallbackJobId;
+    } else {
+      // Try to find any job with title "General Applications"
+      const [fallback] = await db
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(ilike(jobs.title, '%general application%'))
+        .limit(1);
+      jobId = fallback?.id ?? null;
+    }
+  }
+
+  if (!jobId) {
     return NextResponse.json(
       { error: 'Could not match a job. Provide jobId or a recognisable jobTitle.' },
       { status: 404 }
