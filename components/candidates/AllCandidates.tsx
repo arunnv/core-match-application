@@ -225,10 +225,13 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
 
   useEffect(() => () => { if (aiIntervalRef.current) clearInterval(aiIntervalRef.current); }, []);
 
-  const handleDeleteCandidate = async (candidateId: string, jobId: string) => {
+  const handleDeleteCandidate = async (candidateId: string, jobId: string | null) => {
     setDeletingId(candidateId);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/candidates/${candidateId}`, { method: 'DELETE' });
+      const url = jobId
+        ? `/api/jobs/${jobId}/candidates/${candidateId}`
+        : `/api/candidates/${candidateId}`;
+      const res = await fetch(url, { method: 'DELETE' });
       if (res.ok) {
         setCandidates((prev) => prev.filter((c) => c.id !== candidateId));
         if (drawerCandId === candidateId) setDrawerCandId(null);
@@ -558,7 +561,7 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                           <span style={{ fontSize: 10, color: '#ef4444', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>Delete candidate?</span>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
-                              onClick={() => handleDeleteCandidate(c.id, c.jobId ?? '')}
+                              onClick={() => handleDeleteCandidate(c.id, c.jobId)}
                               disabled={deletingId === c.id}
                               style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
                             >
