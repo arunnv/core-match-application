@@ -130,6 +130,7 @@ export const candidates = pgTable('candidates', {
     reasoning: string;
   }[]>().default([]),
   fileName: text('file_name'),
+  resumeUrl: text('resume_url'),
   resumeText: text('resume_text'),
   sourceEmail: jsonb('source_email').$type<{
     sender: string;

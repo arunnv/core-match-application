@@ -26,6 +26,7 @@ type Candidate = {
   phone?: string | null;
   evaluations?: { competency: string; level: string; weight_percentage: number; evidence_quote: string | null; competency_score_0_to_100: number; weighted_points_earned: number; reasoning: string }[];
   sourceEmail?: SourceEmail;
+  resumeUrl?: string | null;
 };
 
 type Filter = 'all' | 'high' | 'strong' | 'processing';

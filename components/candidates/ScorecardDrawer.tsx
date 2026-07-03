@@ -38,6 +38,7 @@ type Candidate = {
   gaps: Gap[];
   evaluations?: EvaluationRow[];
   sourceEmail?: SourceEmail;
+  resumeUrl?: string | null;
 };
 
 export default function ScorecardDrawer({
@@ -284,6 +285,18 @@ export default function ScorecardDrawer({
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Download Resume ── */}
+          {c.resumeUrl && (
+            <a
+              href={c.resumeUrl}
+              download
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, padding: '12px 18px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 11, color: '#1d4ed8', fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '.06em', textDecoration: 'none', cursor: 'pointer' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="#1d4ed8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 13h12" stroke="#1d4ed8" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              Download Original Resume
+            </a>
           )}
 
           {/* ── Actions ── */}
