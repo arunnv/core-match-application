@@ -7,6 +7,8 @@ import ScorecardDrawer from './ScorecardDrawer';
 type Capability = { label: string; note: string; w: number };
 type Gap = { label: string; note: string; w: number };
 
+type SourceEmail = { sender: string; subject: string; bodyHtml: string; receivedAt: string } | null;
+
 type Candidate = {
   id: string;
   name: string;
@@ -20,6 +22,10 @@ type Candidate = {
   aiReasoning: string[];
   capabilities: Capability[];
   gaps: Gap[];
+  email?: string | null;
+  phone?: string | null;
+  evaluations?: { competency: string; level: string; weight_percentage: number; evidence_quote: string | null; competency_score_0_to_100: number; weighted_points_earned: number; reasoning: string }[];
+  sourceEmail?: SourceEmail;
 };
 
 type Filter = 'all' | 'high' | 'strong' | 'processing';

@@ -131,6 +131,12 @@ export const candidates = pgTable('candidates', {
   }[]>().default([]),
   fileName: text('file_name'),
   resumeText: text('resume_text'),
+  sourceEmail: jsonb('source_email').$type<{
+    sender: string;
+    subject: string;
+    bodyHtml: string;
+    receivedAt: string;
+  } | null>().default(null),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

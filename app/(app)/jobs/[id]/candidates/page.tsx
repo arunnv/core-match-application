@@ -32,6 +32,10 @@ export default async function CandidatesPage(props: PageProps<'/jobs/[id]/candid
         aiReasoning: (c.aiReasoning as string[]) ?? [],
         capabilities: (c.capabilities as { label: string; note: string; w: number }[]) ?? [],
         gaps: (c.gaps as { label: string; note: string; w: number }[]) ?? [],
+        email: c.email,
+        phone: c.phone,
+        evaluations: (c.evaluations as { competency: string; level: string; weight_percentage: number; evidence_quote: string | null; competency_score_0_to_100: number; weighted_points_earned: number; reasoning: string }[]) ?? [],
+        sourceEmail: c.sourceEmail as { sender: string; subject: string; bodyHtml: string; receivedAt: string } | null,
       }))}
     />
   );

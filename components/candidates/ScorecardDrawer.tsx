@@ -16,6 +16,13 @@ type EvaluationRow = {
 type Capability = { label: string; note: string; w: number };
 type Gap = { label: string; note: string; w: number };
 
+type SourceEmail = {
+  sender: string;
+  subject: string;
+  bodyHtml: string;
+  receivedAt: string;
+} | null;
+
 type Candidate = {
   id: string;
   name: string;
@@ -30,6 +37,7 @@ type Candidate = {
   capabilities: Capability[];
   gaps: Gap[];
   evaluations?: EvaluationRow[];
+  sourceEmail?: SourceEmail;
 };
 
 export default function ScorecardDrawer({
@@ -43,6 +51,7 @@ export default function ScorecardDrawer({
   const offset = ringOffset(c.score, RING_C2);
   const [breakdownOpen, setBreakdownOpen] = useState(true);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const evals = c.evaluations ?? [];
   const hasEvals = evals.length > 0;
@@ -237,6 +246,45 @@ export default function ScorecardDrawer({
               </div>
             )}
           </div>
+
+          {/* ── BLOCK 5: Source Application Email ── */}
+          {c.sourceEmail && (
+            <div style={{ marginTop: 16, background: '#f0f9ff', borderRadius: 10, border: '1px solid #bae6fd', overflow: 'hidden' }}>
+              <button
+                onClick={() => setEmailOpen((o) => !o)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', padding: '11px 14px', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 10, color: '#0369a1', letterSpacing: '.14em' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="#0369a1" strokeWidth="1.4"/><path d="M1 5l7 5 7-5" stroke="#0369a1" strokeWidth="1.4" strokeLinecap="round"/></svg>
+                  SOURCE APPLICATION EMAIL
+                </span>
+                <span style={{ transition: 'transform .2s', transform: emailOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+              </button>
+              {emailOpen && (
+                <div style={{ padding: '0 14px 14px', borderTop: '1px solid #bae6fd' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+                    <div style={{ display: 'flex', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                      <span style={{ color: '#0369a1', minWidth: 56 }}>FROM</span>
+                      <span style={{ color: '#18181b' }}>{c.sourceEmail.sender}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                      <span style={{ color: '#0369a1', minWidth: 56 }}>SUBJECT</span>
+                      <span style={{ color: '#18181b' }}>{c.sourceEmail.subject}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                      <span style={{ color: '#0369a1', minWidth: 56 }}>RECEIVED</span>
+                      <span style={{ color: '#71717a' }}>{new Date(c.sourceEmail.receivedAt).toUTCString()}</span>
+                    </div>
+                  </div>
+                  {c.sourceEmail.bodyHtml && (
+                    <div style={{ marginTop: 12, padding: '10px 12px', background: '#fff', borderRadius: 8, border: '1px solid #e0f2fe', fontSize: 12, color: '#334155', lineHeight: 1.6, maxHeight: 220, overflowY: 'auto' }}
+                      dangerouslySetInnerHTML={{ __html: c.sourceEmail.bodyHtml }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Actions ── */}
           <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
