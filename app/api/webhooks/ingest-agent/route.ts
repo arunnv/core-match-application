@@ -162,7 +162,9 @@ export async function POST(req: NextRequest) {
   // ── Save file binary to public/uploads ──
   let resumeUrl: string | null = null;
   try {
+    console.log(`[ingest-agent] saving file: name=${fileName} size=${fileBuffer.length} cwd=${process.cwd()}`);
     resumeUrl = await saveFile(fileBuffer, fileName, candidateId);
+    console.log(`[ingest-agent] file saved: ${resumeUrl}`);
     await db.update(candidates).set({ resumeUrl }).where(eq(candidates.id, candidateId));
   } catch (err) {
     console.error('[ingest-agent] file save failed:', err);
