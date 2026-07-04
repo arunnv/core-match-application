@@ -115,7 +115,7 @@ async function saveFile(buffer: Buffer, fileName: string, candidateId: string): 
   const uploadsDir = join(process.cwd(), 'public', 'uploads');
   await mkdir(uploadsDir, { recursive: true });
   await writeFile(join(uploadsDir, safeName), buffer);
-  return `/uploads/${safeName}`;
+  return `/api/uploads/${safeName}`;
 }
 
 export async function POST(req: NextRequest) {
