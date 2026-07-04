@@ -5,7 +5,7 @@ import { candidates, jobs } from '@/db/schema';
 import { eq, ilike } from 'drizzle-orm';
 import { extractText } from '@/lib/ai/parse-resume';
 import { scoreCandidate } from '@/lib/ai/scorer';
-import { writeFile } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 
 const SourceEmailSchema = z.object({
@@ -113,6 +113,7 @@ async function saveFile(buffer: Buffer, fileName: string, candidateId: string): 
   const ext = fileName.split('.').pop() ?? 'pdf';
   const safeName = `${candidateId}.${ext}`;
   const uploadsDir = join(process.cwd(), 'public', 'uploads');
+  await mkdir(uploadsDir, { recursive: true });
   await writeFile(join(uploadsDir, safeName), buffer);
   return `/uploads/${safeName}`;
 }
