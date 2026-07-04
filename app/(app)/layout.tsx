@@ -1,4 +1,4 @@
-import { auth } from '@/auth';
+import { auth, signOut } from '@/auth';
 import { redirect } from 'next/navigation';
 import NavIsland from '@/components/nav/NavIsland';
 import TopBar from '@/components/nav/TopBar';
@@ -12,11 +12,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? session.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : session.user.email?.slice(0, 2).toUpperCase() ?? 'U';
 
+  const handleSignOut = async () => {
+    'use server';
+    await signOut({ redirectTo: '/login' });
+  };
+
   return (
     <>
-      <TopBar userName={session.user.name ?? session.user.email ?? 'User'} initials={initials} email={session.user.email ?? ''} />
-      <NavIsland isAdmin={isAdmin} />
-      <div style={{ paddingTop: 56, paddingLeft: 72 }}>{children}</div>
+      <TopBar
+        userName={session.user.name ?? session.user.email ?? 'User'}
+        initials={initials}
+        email={session.user.email ?? ''}
+        onSignOut={handleSignOut}
+      />
+      <NavIsland isAdmin={isAdmin} initials={initials} />
+      <div style={{ paddingTop: 52, paddingLeft: 76 }}>{children}</div>
     </>
   );
 }
