@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateJobModal from './CreateJobModal';
+import SheetsImportWizard from './SheetsImportWizard';
 
 type Job = {
   id: string;
@@ -26,6 +27,7 @@ export default function JobsDashboard({
   const router = useRouter();
   const [jobs, setJobs] = useState(initialJobs);
   const [showCreate, setShowCreate] = useState(false);
+  const [showSheets, setShowSheets] = useState(false);
   const [search, setSearch] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -90,6 +92,13 @@ export default function JobsDashboard({
             style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontFamily: 'var(--font-mono)', fontSize: 12.5, color: '#18181b' }}
           />
         </div>
+        <button
+          onClick={() => setShowSheets(true)}
+          style={{ background: '#fff', color: '#18181b', border: '1px solid #e4e4e7', height: 42, padding: '0 16px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}
+        >
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+          Import from Sheets
+        </button>
         <button
           onClick={() => setShowCreate(true)}
           style={{ background: '#18181b', color: '#fff', border: 'none', height: 42, padding: '0 18px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}
@@ -212,6 +221,11 @@ export default function JobsDashboard({
       </div>
 
       {showCreate && <CreateJobModal onClose={() => setShowCreate(false)} onCreate={handleCreate} existingCount={jobs.length} />}
+      <SheetsImportWizard
+        open={showSheets}
+        onClose={() => setShowSheets(false)}
+        onImported={(count) => { if (count > 0) router.refresh(); }}
+      />
     </div>
   );
 }

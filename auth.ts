@@ -38,7 +38,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
       authorization: {
-        params: { prompt: 'select_account' },
+        params: {
+          prompt: 'consent',
+          access_type: 'offline',
+          scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.readonly',
+        },
       },
     }),
     Credentials({
