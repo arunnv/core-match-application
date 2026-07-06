@@ -22,12 +22,13 @@ export async function GET() {
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({
-      ok: false,
-      error: msg.includes('API key') ? 'Invalid Gemini API key.' :
-             msg.includes('quota') ? 'Gemini API quota exceeded.' :
-             msg.includes('network') || msg.includes('fetch') ? 'Cannot reach Gemini API. Check network connectivity.' :
-             `Gemini API error: ${msg}`,
-    });
+    console.error('[ai-status] Gemini ping failed:', msg);
+    const friendly =
+      msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') ? 'Invalid Gemini API key. Check GEMINI_API_KEY in environment variables.' :
+      msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') ? 'Gemini API quota exceeded. Try again later.' :
+      msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('UND_ERR') ? 'Cannot reach Gemini API. Check server network connectivity.' :
+      msg.includes('403') ? 'Gemini API access denied. Verify your API key has the Generative Language API enabled.' :
+      msg;
+    return NextResponse.json({ ok: false, error: friendly });
   }
 }
