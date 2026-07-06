@@ -111,8 +111,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.role = dbUser.role ?? 'Recruiter';
             token.tenantId = tenantId ?? null;
 
-            // Log Google SSO sign-in (account present = OAuth flow)
             if (account?.provider === 'google') {
+              // Persist Google OAuth tokens so the Sheets integration can use them
+              if (account.access_token || account.refresh_token) {
+                await db.update(accounts)
+                  .set({
+                    access_token: account.access_token ?? undefined,
+                    refresh_token: account.refresh_token ?? undefined,
+                    expires_at: account.expires_at ?? undefined,
+                  })
+                  .where(
+                    eq(accounts.userId, userId)
+                  );
+              }
               void logAuthentication({
                 userId: dbUser.id,
                 ipAddress: null,

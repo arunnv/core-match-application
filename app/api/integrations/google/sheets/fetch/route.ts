@@ -39,7 +39,8 @@ async function getGoogleToken(userId: string): Promise<string | null> {
     }
   }
 
-  return account.access_token ?? null;
+  // Token expired and no refresh token — signal re-auth needed
+  return null;
 }
 
 export async function GET(req: NextRequest) {
