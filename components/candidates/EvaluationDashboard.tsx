@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { bandForScore, RING_C, ringOffset } from '@/lib/utils';
+import { bandForScore, RING_C, ringOffset, cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import ScorecardDrawer from './ScorecardDrawer';
 
 type Capability = { label: string; note: string; w: number };
 type Gap = { label: string; note: string; w: number };
-
 type SourceEmail = { sender: string; subject: string; bodyHtml: string; receivedAt: string } | null;
 
 type Candidate = {
@@ -65,11 +66,7 @@ export default function EvaluationDashboard({
   useEffect(() => {
     const hasProcessing = candidates.some((c) => c.status === 'processing');
     if (!hasProcessing) return;
-
-    pollingRef.current = setInterval(async () => {
-      await fetchCandidates();
-    }, 4000);
-
+    pollingRef.current = setInterval(async () => { await fetchCandidates(); }, 4000);
     return () => clearInterval(pollingRef.current);
   }, [candidates, fetchCandidates]);
 
@@ -81,21 +78,12 @@ export default function EvaluationDashboard({
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     setUploading(true);
     setUploadError(null);
-
     const form = new FormData();
-    for (const file of Array.from(files)) {
-      form.append('files', file);
-    }
-
+    for (const file of Array.from(files)) form.append('files', file);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/candidates/upload`, {
-        method: 'POST',
-        body: form,
-      });
-
+      const res = await fetch(`/api/jobs/${jobId}/candidates/upload`, { method: 'POST', body: form });
       if (!res.ok) {
         const err = await res.json() as { error: string };
         setUploadError(err.error ?? 'Upload failed');
@@ -129,9 +117,7 @@ export default function EvaluationDashboard({
     try {
       const res = await fetch(`/api/jobs/${jobId}/candidates/${candidateId}/rescore`, { method: 'POST' });
       if (res.ok) {
-        setCandidates((prev) =>
-          prev.map((c) => c.id === candidateId ? { ...c, status: 'processing' as const } : c)
-        );
+        setCandidates((prev) => prev.map((c) => c.id === candidateId ? { ...c, status: 'processing' as const } : c));
         if (activeId === candidateId) setActiveId(null);
       }
     } finally {
@@ -140,10 +126,7 @@ export default function EvaluationDashboard({
   };
 
   const scored = candidates.filter((c) => c.status === 'scored');
-  const avgMatch = scored.length
-    ? Math.round(scored.reduce((a, c) => a + c.score, 0) / scored.length)
-    : 0;
-
+  const avgMatch = scored.length ? Math.round(scored.reduce((a, c) => a + c.score, 0) / scored.length) : 0;
   const filtered = candidates.filter((c) => {
     if (filter === 'all') return true;
     if (filter === 'processing') return c.status === 'processing';
@@ -153,17 +136,6 @@ export default function EvaluationDashboard({
   });
 
   const active = candidates.find((c) => c.id === activeId && c.status === 'scored') ?? null;
-
-  const chipStyle = (active: boolean): React.CSSProperties => ({
-    fontSize: 11,
-    background: active ? '#18181b' : '#fff',
-    color: active ? '#fff' : '#71717a',
-    border: active ? 'none' : '1px solid #e4e4e7',
-    padding: '7px 13px',
-    borderRadius: 9,
-    cursor: 'pointer',
-  });
-
   const highCount = candidates.filter((c) => c.status === 'scored' && c.score >= 88).length;
   const strongCount = candidates.filter((c) => c.status === 'scored' && c.score >= 78 && c.score < 88).length;
   const processingCount = candidates.filter((c) => c.status === 'processing').length;
@@ -172,62 +144,43 @@ export default function EvaluationDashboard({
     <>
       <div style={{ maxWidth: 1200, padding: '80px 48px 90px 96px' }} className="animate-rise">
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, marginBottom: 30 }}>
+        <div className="flex items-end justify-between gap-6 mb-7">
           <div>
-            <div style={{ fontSize: 11, letterSpacing: '.22em', color: '#a1a1aa', marginBottom: 14 }}>
+            <div className="text-[11px] tracking-[.22em] text-muted-foreground mb-3.5">
               CANDIDATES / {jobTitle.toUpperCase()}
             </div>
-            <h1 style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 44, lineHeight: 1, letterSpacing: '-.02em', margin: 0 }}>
-              Evaluation <span style={{ fontWeight: 600 }}>Dashboard</span>
+            <h1 className="font-light text-[44px] leading-none tracking-[-0.02em] m-0" style={{ fontFamily: 'var(--font-space)' }}>
+              Evaluation <span className="font-semibold">Dashboard</span>
             </h1>
           </div>
-          <div style={{ display: 'flex', gap: 34, paddingBottom: 6 }}>
+          <div className="flex gap-8 pb-1.5">
             <div>
-              <div style={{ fontSize: 10, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 6 }}>SCORED</div>
-              <div style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 30 }}>
-                {scored.length}<span style={{ fontSize: 15, color: '#a1a1aa' }}> / {candidates.length}</span>
+              <div className="text-[10px] tracking-[.16em] text-muted-foreground mb-1.5">SCORED</div>
+              <div className="font-light text-[30px] text-foreground" style={{ fontFamily: 'var(--font-space)' }}>
+                {scored.length}<span className="text-[15px] text-muted-foreground"> / {candidates.length}</span>
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 10, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 6 }}>AVG MATCH</div>
-              <div style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 30, color: '#059669' }}>
-                {avgMatch}<span style={{ fontSize: 15 }}>%</span>
+              <div className="text-[10px] tracking-[.16em] text-muted-foreground mb-1.5">AVG MATCH</div>
+              <div className="font-light text-[30px] text-[var(--green)]" style={{ fontFamily: 'var(--font-space)' }}>
+                {avgMatch}<span className="text-[15px]">%</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Upload bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.txt"
-            style={{ display: 'none' }}
-            onChange={handleUpload}
-          />
-          <button
+        <div className="flex items-center gap-3 mb-4">
+          <input ref={fileInputRef} type="file" multiple accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={handleUpload} />
+          <Button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            style={{
-              background: uploading ? '#f4f4f5' : '#18181b',
-              color: uploading ? '#a1a1aa' : '#fff',
-              border: 'none',
-              height: 38,
-              padding: '0 16px',
-              borderRadius: 10,
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              cursor: uploading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-            }}
+            variant={uploading ? 'outline' : 'default'}
+            className="h-9 gap-1.5 font-mono text-[12px]"
           >
             {uploading ? (
               <>
-                <span className="spin-anim" style={{ width: 12, height: 12, border: '2px solid #d4d4d8', borderTopColor: '#71717a', borderRadius: '50%', display: 'inline-block' }} />
+                <span className="spin-anim w-3 h-3 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full inline-block" />
                 Uploading…
               </>
             ) : (
@@ -236,75 +189,73 @@ export default function EvaluationDashboard({
                 Upload Resumes
               </>
             )}
-          </button>
-          <span style={{ fontSize: 11, color: '#a1a1aa' }}>PDF, DOC, DOCX, TXT · up to 20 files</span>
-          {uploadError && (
-            <span style={{ fontSize: 11, color: '#ef4444', marginLeft: 8 }}>{uploadError}</span>
-          )}
+          </Button>
+          <span className="text-[11px] text-muted-foreground">PDF, DOC, DOCX, TXT · up to 20 files</span>
+          {uploadError && <span className="text-[11px] text-destructive ml-2">{uploadError}</span>}
         </div>
 
         {/* Filter chips */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 22 }}>
-          <button onClick={() => setFilter('all')} style={chipStyle(filter === 'all')}>All · {candidates.length}</button>
-          <button onClick={() => setFilter('high')} style={chipStyle(filter === 'high')}>High match · {highCount}</button>
-          <button onClick={() => setFilter('strong')} style={chipStyle(filter === 'strong')}>Strong · {strongCount}</button>
-          <button onClick={() => setFilter('processing')} style={chipStyle(filter === 'processing')}>Processing · {processingCount}</button>
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: '#a1a1aa' }}>Sorted by match score ↓</span>
+        <div className="flex items-center gap-2 mb-5">
+          {([
+            { key: 'all', label: `All · ${candidates.length}` },
+            { key: 'high', label: `High match · ${highCount}` },
+            { key: 'strong', label: `Strong · ${strongCount}` },
+            { key: 'processing', label: `Processing · ${processingCount}` },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={cn(
+                'text-[11px] px-3 py-1.5 rounded-[9px] border cursor-pointer transition-colors font-mono',
+                filter === key ? 'bg-foreground text-background border-transparent' : 'bg-card text-muted-foreground border-border hover:border-muted-foreground'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="ml-auto text-[11px] text-muted-foreground">Sorted by match score ↓</span>
         </div>
 
         {/* Empty state */}
         {candidates.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: '#a1a1aa' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>📂</div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: '#52525b', marginBottom: 6 }}>No candidates yet</div>
-            <div style={{ fontSize: 12 }}>Upload resumes above to start AI scoring</div>
+          <div className="text-center py-20 text-muted-foreground">
+            <div className="text-[36px] mb-3">📂</div>
+            <div className="text-[14px] font-medium text-foreground mb-1.5">No candidates yet</div>
+            <div className="text-[12px]">Upload resumes above to start AI scoring</div>
           </div>
         )}
 
         {/* Candidate rows */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {filtered.map((c) => {
             if (c.status === 'processing') {
               return (
-                <div key={c.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 22, alignItems: 'center', background: '#fff', border: '1px solid #ececed', borderRadius: 16, padding: '18px 22px' }}>
-                  <div className="spin-anim" style={{ width: 58, height: 58, flexShrink: 0, borderRadius: '50%', border: '5px solid #f1f1f2', borderTopColor: '#d4d4d8' }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#52525b' }}>{c.name}</div>
-                    <div className="shimmer" style={{ height: 10, width: '55%', borderRadius: 5 }} />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <div className="pulse-dot" style={{ height: 18, width: 48, borderRadius: 6, background: '#f4f4f5' }} />
-                      <div className="pulse-dot" style={{ height: 18, width: 62, borderRadius: 6, background: '#f4f4f5' }} />
+                <div key={c.id} className="grid gap-[22px] items-center bg-card border border-border rounded-2xl p-[18px_22px]"
+                  style={{ gridTemplateColumns: 'auto 1fr auto' }}>
+                  <div className="spin-anim w-[58px] h-[58px] shrink-0 rounded-full border-[5px] border-border border-t-muted-foreground/50" />
+                  <div className="flex flex-col gap-2">
+                    <div className="text-[13px] font-medium text-muted-foreground">{c.name}</div>
+                    <div className="shimmer h-2.5 w-[55%] rounded-full" />
+                    <div className="flex gap-1.5">
+                      <div className="pulse-dot h-[18px] w-12 rounded-md bg-muted" />
+                      <div className="pulse-dot h-[18px] w-16 rounded-md bg-muted" />
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, color: '#a1a1aa', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span className="pulse-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: '#d4d4d8' }} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <span className="pulse-dot w-[7px] h-[7px] rounded-full bg-muted-foreground/40" />
                       AI scoring…
                     </span>
                     {isSuperAdmin && (
                       confirmDeleteId === c.id ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <button
-                            onClick={() => handleDelete(c.id)}
-                            disabled={deletingId === c.id}
-                            style={{ padding: '4px 9px', borderRadius: 6, border: 'none', background: '#ef4444', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
-                          >
+                        <div className="flex items-center gap-1.5">
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(c.id)} disabled={deletingId === c.id} className="h-7 text-[10px] font-mono">
                             {deletingId === c.id ? '…' : 'Confirm'}
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
-                          >
-                            Cancel
-                          </button>
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="h-7 text-[10px] font-mono">Cancel</Button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => setConfirmDeleteId(c.id)}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fff8f8', color: '#ef4444', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
-                        >
-                          Delete
-                        </button>
+                        <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(c.id)} className="h-7 text-[10px] font-mono text-destructive border-destructive/40 hover:bg-destructive/10">Delete</Button>
                       )
                     )}
                   </div>
@@ -320,107 +271,88 @@ export default function EvaluationDashboard({
               <div
                 key={c.id}
                 onClick={() => !isSuperAdmin && setActiveId(c.id)}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'auto 1fr auto',
-                  gap: 22,
-                  alignItems: 'center',
-                  background: '#fff',
-                  border: `1px solid ${isConfirmingDelete ? '#fecaca' : '#e4e4e7'}`,
-                  borderRadius: 16,
-                  padding: '18px 22px',
-                  cursor: isSuperAdmin ? 'default' : 'pointer',
-                  transition: 'all .22s cubic-bezier(.22,1,.36,1)',
-                }}
-                className={isSuperAdmin ? '' : 'hover:border-[#d4d4d8] hover:-translate-y-px hover:shadow-lg'}
+                className={cn(
+                  'grid gap-[22px] items-center bg-card rounded-2xl p-[18px_22px] transition-all duration-[220ms] ease-[cubic-bezier(.22,1,.36,1)]',
+                  isConfirmingDelete ? 'border border-destructive/40' : 'border border-border',
+                  !isSuperAdmin && 'cursor-pointer hover:border-muted-foreground/40 hover:-translate-y-px hover:shadow-lg'
+                )}
+                style={{ gridTemplateColumns: 'auto 1fr auto' }}
               >
                 {/* Score ring */}
-                <div style={{ position: 'relative', width: 58, height: 58, flexShrink: 0 }}>
+                <div className="relative w-[58px] h-[58px] shrink-0">
                   <svg width="58" height="58" viewBox="0 0 58 58">
-                    <circle cx="29" cy="29" r="24" fill="none" stroke="#f1f1f2" strokeWidth="5" />
-                    <circle cx="29" cy="29" r="17.5" fill="none" stroke="#f4f4f5" strokeWidth="1.5" strokeDasharray="1.5 4" />
-                    <circle cx="29" cy="29" r="24" fill="none" stroke={band.color} strokeWidth="5" strokeLinecap="round" strokeDasharray="150.796" strokeDashoffset={offset} transform="rotate(-90 29 29)" style={{ transition: 'stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)' }} />
+                    <circle cx="29" cy="29" r="24" fill="none" stroke="hsl(var(--border))" strokeWidth="5" />
+                    <circle cx="29" cy="29" r="17.5" fill="none" stroke="hsl(var(--muted))" strokeWidth="1.5" strokeDasharray="1.5 4" />
+                    <circle cx="29" cy="29" r="24" fill="none" stroke={band.color} strokeWidth="5" strokeLinecap="round"
+                      strokeDasharray="150.796" strokeDashoffset={offset}
+                      transform="rotate(-90 29 29)"
+                      style={{ transition: 'stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)' }} />
                   </svg>
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 17, lineHeight: 1, color: '#18181b' }}>{c.score}</span>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="font-semibold text-[17px] leading-none text-foreground" style={{ fontFamily: 'var(--font-space)' }}>{c.score}</span>
                   </div>
                 </div>
 
                 {/* Identity */}
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2.5 mb-1">
                     <span
-                      style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, color: '#18181b', cursor: 'pointer' }}
+                      className="font-semibold text-[16px] text-foreground cursor-pointer"
+                      style={{ fontFamily: 'var(--font-space)' }}
                       onClick={(e) => { e.stopPropagation(); setActiveId(c.id); }}
                     >
                       {c.name}
                     </span>
-                    <span style={{ fontSize: 9, letterSpacing: '.14em', color: band.color, background: band.bg, border: `1px solid ${band.bd}`, padding: '2px 7px', borderRadius: 5 }}>{band.label}</span>
+                    <span className="text-[9px] tracking-[.14em] px-2 py-0.5 rounded-[5px] border" style={{ color: band.color, background: band.bg, borderColor: band.bd }}>
+                      {band.label}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#71717a', marginBottom: 9 }}>
-                    {c.currentRole} <span style={{ color: '#d4d4d8' }}>·</span> {c.location} <span style={{ color: '#d4d4d8' }}>·</span> {c.experience}
+                  <div className="text-[11.5px] text-muted-foreground mb-2">
+                    {c.currentRole} <span className="text-border">·</span> {c.location} <span className="text-border">·</span> {c.experience}
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="flex gap-1.5">
                     {c.tags.map((t) => (
-                      <span key={t} style={{ fontSize: 10, color: '#52525b', background: '#f4f4f5', padding: '3px 8px', borderRadius: 6 }}>{t}</span>
+                      <Badge key={t} variant="secondary" className="text-[10px] px-2 py-0.5">{t}</Badge>
                     ))}
                   </div>
                 </div>
 
-                {/* Right — metrics or SuperAdmin actions */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, textAlign: 'right' }}>
+                {/* Right actions */}
+                <div className="flex flex-col items-end gap-2 text-right">
                   {isSuperAdmin ? (
                     isConfirmingDelete ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
-                        <span style={{ fontSize: 10, color: '#ef4444', fontFamily: 'var(--font-mono)' }}>Delete candidate?</span>
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          disabled={deletingId === c.id}
-                          style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#ef4444', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
-                        >
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[10px] text-destructive" style={{ fontFamily: 'var(--font-mono)' }}>Delete candidate?</span>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(c.id)} disabled={deletingId === c.id} className="h-7 text-[10px] font-mono">
                           {deletingId === c.id ? '…' : 'Confirm'}
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
-                        >
-                          Cancel
-                        </button>
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(null)} className="h-7 text-[10px] font-mono">Cancel</Button>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleRescore(c.id)}
-                          disabled={rescoringId === c.id}
-                          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e4e4e7', background: '#fff', color: '#52525b', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
-                        >
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="outline" onClick={() => handleRescore(c.id)} disabled={rescoringId === c.id} className="h-7 text-[10px] font-mono gap-1">
                           {rescoringId === c.id ? (
-                            <span className="spin-anim" style={{ width: 10, height: 10, border: '1.5px solid #d4d4d8', borderTopColor: '#71717a', borderRadius: '50%', display: 'inline-block' }} />
+                            <span className="spin-anim w-2.5 h-2.5 border-[1.5px] border-muted-foreground/30 border-t-muted-foreground rounded-full inline-block" />
                           ) : (
                             <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M13 8A5 5 0 1 1 8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M13 3v5h-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           )}
                           Rescore
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(c.id)}
-                          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff8f8', color: '#ef4444', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer' }}
-                        >
-                          Delete
-                        </button>
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setConfirmDeleteId(c.id)} className="h-7 text-[10px] font-mono text-destructive border-destructive/40 hover:bg-destructive/10">Delete</Button>
                       </div>
                     )
                   ) : (
                     <>
-                      <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#71717a' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ width: 7, height: 7, borderRadius: 2, background: '#059669' }} />{c.capabilities.length} matched
+                      <div className="flex gap-3.5 text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-[7px] h-[7px] rounded-sm bg-[var(--green)]" />{c.capabilities.length} matched
                         </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ width: 7, height: 7, borderRadius: 2, background: '#d97706' }} />{c.gaps.length} gaps
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-[7px] h-[7px] rounded-sm bg-amber-500" />{c.gaps.length} gaps
                         </span>
                       </div>
-                      <span style={{ fontSize: 12, color: '#18181b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        View scorecard <span style={{ color: '#059669' }}>→</span>
+                      <span className="text-[12px] text-foreground flex items-center gap-1.5">
+                        View scorecard <span className="text-[var(--green)]">→</span>
                       </span>
                     </>
                   )}

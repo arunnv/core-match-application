@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type User = { id: string; name: string; role: string; lastLogin: string; credits: number; enabled: boolean };
 
@@ -45,8 +48,7 @@ export default function AdminUsers({
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, enabled: newEnabled } : u)));
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: newEnabled }),
       });
       if (!res.ok) setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, enabled: user.enabled } : u)));
@@ -77,128 +79,100 @@ export default function AdminUsers({
 
   return (
     <>
-      <style>{`
-        .au-wrap { padding: 72px 16px 80px; max-width: 1400px; }
-        .au-header { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
-        .au-nav { display: flex; gap: 8px; }
-        .au-metrics { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px; }
-        .au-body { display: grid; grid-template-columns: 1fr; gap: 16px; }
-        .au-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .au-table { display: grid; min-width: 560px; }
-        .au-table-head { display: grid; grid-template-columns: 1.4fr 1fr 100px 110px 90px 70px; gap: 12px; padding: 10px 0; border-bottom: 2px solid #e4e4e7; font-size: 9px; letter-spacing: .12em; color: #a1a1aa; font-weight: 500; }
-        .au-table-row { display: grid; grid-template-columns: 1.4fr 1fr 100px 110px 90px 70px; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f1f2; cursor: pointer; }
-        .au-card { background: #fff; border: 1px solid #e4e4e7; border-radius: 14px; padding: 18px; box-shadow: 0 1px 2px rgba(24,24,27,.04); }
-        .log-row { display: grid; grid-template-columns: 90px 1fr 70px 52px; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid #f4f4f5; }
-        .log-row:last-child { border-bottom: none; }
-
-        @media (min-width: 640px) {
-          .au-wrap { padding: 72px 24px 80px; }
-          .au-metrics { grid-template-columns: repeat(3, 1fr); gap: 14px; }
-        }
-
-        @media (min-width: 900px) {
-          .au-wrap { padding: 80px 32px 90px 96px; }
-          .au-header { flex-direction: row; align-items: flex-end; justify-content: space-between; }
-          .au-body { grid-template-columns: 260px 1fr; }
-          .au-table-head { grid-template-columns: 1.4fr 1.2fr 110px 130px 90px 70px; gap: 14px; font-size: 9.5px; }
-          .au-table-row { grid-template-columns: 1.4fr 1.2fr 110px 130px 90px 70px; gap: 14px; }
-          .au-table { min-width: unset; }
-        }
-      `}</style>
-
-      <div className="au-wrap animate-rise">
+      <div style={{ maxWidth: 1400, padding: '80px 48px 90px 96px' }} className="animate-rise">
         {/* Header */}
-        <div className="au-header">
+        <div className="flex items-end justify-between gap-6 mb-6">
           <div>
-            <div style={{ fontSize: 11, letterSpacing: '.22em', color: '#a1a1aa', marginBottom: 12 }}>SYSTEM / USERS_AND_USAGE</div>
-            <h1 style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 'clamp(28px, 5vw, 44px)', lineHeight: 1, letterSpacing: '-.02em', margin: 0 }}>
-              User Management <span style={{ fontWeight: 600 }}>&amp; Credits</span>
+            <div className="text-[11px] tracking-[.22em] text-muted-foreground mb-3">SYSTEM / USERS_AND_USAGE</div>
+            <h1 className="font-light leading-none tracking-[-0.02em] m-0 text-foreground" style={{ fontFamily: 'var(--font-space)', fontSize: 'clamp(28px, 5vw, 44px)' }}>
+              User Management <span className="font-semibold">&amp; Credits</span>
             </h1>
           </div>
-          <div className="au-nav">
-            <Link href="/admin" style={{ padding: '8px 14px', borderRadius: 9, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>Cockpit</Link>
-            <button style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: '#18181b', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer' }}>Users &amp; Usage</button>
+          <div className="flex gap-2 pb-1.5">
+            <Link href="/admin" className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 py-2 font-mono text-[12px] text-foreground hover:bg-accent transition-colors">
+              Cockpit
+            </Link>
+            <Button className="font-mono text-[12px]">Users &amp; Usage</Button>
           </div>
         </div>
 
         {/* Metrics */}
-        <div className="au-metrics">
+        <div className="grid grid-cols-3 gap-3.5 mb-5">
           {[
-            { label: 'TOTAL SIGN-UPS', value: totalSignUps.toLocaleString(), sub: `${users.filter(u => u.enabled).length} active`, dot: false, subColor: undefined as string | undefined },
-            { label: 'ACTIVE ACCOUNTS', value: users.filter(u => u.enabled).length.toString(), sub: 'Enabled users', subColor: '#059669' as string | undefined, dot: true },
-            { label: 'TOTAL CREDITS USED', value: formatNumber(totalCreditsUsed), sub: 'Lifetime across all users', subColor: '#d97706' as string | undefined, dot: false },
+            { label: 'TOTAL SIGN-UPS', value: totalSignUps.toLocaleString(), sub: `${users.filter(u => u.enabled).length} active`, dot: false, subColor: '' },
+            { label: 'ACTIVE ACCOUNTS', value: users.filter(u => u.enabled).length.toString(), sub: 'Enabled users', subColor: 'text-[var(--green)]', dot: true },
+            { label: 'TOTAL CREDITS USED', value: formatNumber(totalCreditsUsed), sub: 'Lifetime across all users', subColor: 'text-amber-600', dot: false },
           ].map(({ label, value, sub, subColor, dot }) => (
-            <div key={label} className="au-card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                {dot && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />}
-                <span style={{ fontSize: 9.5, letterSpacing: '.16em', color: '#a1a1aa' }}>{label}</span>
+            <div key={label} className="bg-card border border-border rounded-[14px] p-[18px] shadow-sm">
+              <div className="flex items-center gap-1.5 mb-2.5">
+                {dot && <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] shrink-0" />}
+                <span className="text-[9.5px] tracking-[.16em] text-muted-foreground">{label}</span>
               </div>
-              <div style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 'clamp(22px, 4vw, 28px)', color: '#18181b', marginBottom: 6 }}>{value}</div>
-              <div style={{ fontSize: 10, color: subColor ?? '#a1a1aa' }}>{sub}</div>
+              <div className="font-light text-foreground mb-1.5" style={{ fontFamily: 'var(--font-space)', fontSize: 'clamp(22px, 4vw, 28px)' }}>{value}</div>
+              <div className={cn('text-[10px]', subColor || 'text-muted-foreground')}>{sub}</div>
             </div>
           ))}
         </div>
 
         {/* Body */}
-        <div className="au-body">
+        <div className="grid gap-4" style={{ gridTemplateColumns: '260px 1fr' }}>
           {/* Top consumers */}
-          <div className="au-card" style={{ height: 'fit-content' }}>
-            <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: '#18181b', marginBottom: 16 }}>Top AI Credit Consumers</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="bg-card border border-border rounded-[14px] p-[18px] shadow-sm h-fit">
+            <div className="font-semibold text-[14px] text-foreground mb-4" style={{ fontFamily: 'var(--font-space)' }}>Top AI Credit Consumers</div>
+            <div className="flex flex-col gap-3.5">
               {topConsumers.map((c) => {
                 const pct = (c.credits / maxCredits) * 100;
                 return (
                   <div key={c.id}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: '#18181b' }}>{c.name}</span>
-                      <span style={{ fontSize: 10, color: '#52525b' }}>{c.credits.toLocaleString()}</span>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[12px] font-medium text-foreground">{c.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{c.credits.toLocaleString()}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ flex: 1, height: 6, borderRadius: 3, background: '#f1f1f2', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: pct > 70 ? '#d97706' : '#a7f3d0', transition: 'all .3s' }} />
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
+                        <div className={cn('h-full rounded-full transition-all', pct > 70 ? 'bg-amber-500' : 'bg-green-300 dark:bg-green-700')} style={{ width: `${pct}%` }} />
                       </div>
-                      <span style={{ fontSize: 9, color: '#a1a1aa', width: 26 }}>{Math.round(pct)}%</span>
+                      <span className="text-[9px] text-muted-foreground w-6">{Math.round(pct)}%</span>
                     </div>
                   </div>
                 );
               })}
-              {topConsumers.length === 0 && (
-                <div style={{ fontSize: 12, color: '#a1a1aa', textAlign: 'center', padding: '16px 0' }}>No data yet</div>
-              )}
+              {topConsumers.length === 0 && <div className="text-[12px] text-muted-foreground text-center py-4">No data yet</div>}
             </div>
           </div>
 
           {/* User directory */}
-          <div className="au-card">
-            <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 15, color: '#18181b', marginBottom: 16 }}>Global User Directory</div>
-            <div className="au-table-wrap">
-              <div className="au-table">
-                <div className="au-table-head">
-                  <div>User Name</div><div>Role</div><div>Last Login</div><div>Credits</div><div>Status</div><div>Toggle</div>
-                </div>
-                {users.map((u) => (
-                  <div key={u.id} className="au-table-row" onClick={() => setDrawerId(u.id)}>
-                    <div style={{ color: '#18181b', fontWeight: 500, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
-                    <div style={{ color: '#52525b', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.role}</div>
-                    <div style={{ color: '#a1a1aa', fontSize: 11 }}>{u.lastLogin}</div>
-                    <div style={{ color: '#18181b', fontVariantNumeric: 'tabular-nums', fontWeight: 500, fontSize: 12 }}>{u.credits.toLocaleString()}</div>
-                    <div>
-                      <span style={{ fontSize: 9, letterSpacing: '.1em', color: u.enabled ? '#059669' : '#71717a', background: u.enabled ? '#ecfdf5' : '#f4f4f5', border: `1px solid ${u.enabled ? '#a7f3d0' : '#e4e4e7'}`, padding: '3px 7px', borderRadius: 5, whiteSpace: 'nowrap' }}>
-                        {u.enabled ? 'On' : 'Off'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); void toggleUser(u.id); }}
-                        style={{ width: 40, height: 24, borderRadius: 12, border: 'none', background: u.enabled ? '#059669' : '#d4d4d8', cursor: 'pointer', position: 'relative', transition: 'all .3s', flexShrink: 0 }}
-                        aria-label={u.enabled ? 'Disable user' : 'Enable user'}
-                      >
-                        <div style={{ position: 'absolute', width: 20, height: 20, borderRadius: 10, background: '#fff', top: 2, left: u.enabled ? 18 : 2, transition: 'left .3s' }} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+          <div className="bg-card border border-border rounded-[14px] p-[18px] shadow-sm overflow-x-auto">
+            <div className="font-semibold text-[15px] text-foreground mb-4" style={{ fontFamily: 'var(--font-space)' }}>Global User Directory</div>
+            <div className="min-w-[560px]">
+              <div className="grid gap-3.5 py-2.5 border-b-2 border-border text-[9.5px] tracking-[.12em] text-muted-foreground font-medium"
+                style={{ gridTemplateColumns: '1.4fr 1.2fr 110px 130px 90px 70px' }}>
+                <div>User Name</div><div>Role</div><div>Last Login</div><div>Credits</div><div>Status</div><div>Toggle</div>
               </div>
+              {users.map((u) => (
+                <div key={u.id} className="grid gap-3.5 items-center py-2.5 border-b border-border/50 cursor-pointer hover:bg-muted/40 transition-colors rounded-sm"
+                  style={{ gridTemplateColumns: '1.4fr 1.2fr 110px 130px 90px 70px' }}
+                  onClick={() => setDrawerId(u.id)}>
+                  <div className="font-medium text-[12.5px] text-foreground truncate">{u.name}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{u.role}</div>
+                  <div className="text-[11px] text-muted-foreground">{u.lastLogin}</div>
+                  <div className="font-medium text-[12px] text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{u.credits.toLocaleString()}</div>
+                  <div>
+                    <Badge variant="outline" className={cn('text-[9px] tracking-[.1em]', u.enabled ? 'text-[var(--green)] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' : 'text-muted-foreground bg-muted border-border')}>
+                      {u.enabled ? 'On' : 'Off'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); void toggleUser(u.id); }}
+                      className={cn('w-10 h-6 rounded-full border-none cursor-pointer relative transition-all', u.enabled ? 'bg-[var(--green)]' : 'bg-muted-foreground/30')}
+                      aria-label={u.enabled ? 'Disable user' : 'Enable user'}
+                    >
+                      <div className={cn('absolute w-5 h-5 rounded-full bg-white top-0.5 transition-[left_.3s]', u.enabled ? 'left-[18px]' : 'left-0.5')} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -207,74 +181,60 @@ export default function AdminUsers({
       {/* User detail drawer */}
       {drawerUser && (
         <>
-          <div onClick={() => setDrawerId(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(24,24,27,.14)', backdropFilter: 'blur(1.5px)' }} />
-          <div className="cm-scroll" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 61, width: 'min(440px, 100vw)', background: '#fff', borderLeft: '1px solid #e4e4e7', boxShadow: '-30px 0 60px -30px rgba(24,24,27,.3)', overflowY: 'auto' }}>
-            {/* Drawer header */}
-            <div style={{ position: 'sticky', top: 0, background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #f1f1f2', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 }}>
-              <div style={{ fontSize: 11, letterSpacing: '.2em', color: '#a1a1aa' }}>USER ACCOUNT</div>
-              <button onClick={() => setDrawerId(null)} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>✕</button>
+          <div onClick={() => setDrawerId(null)} className="fixed inset-0 z-[60] bg-black/15 backdrop-blur-[1.5px]" />
+          <div className="cm-scroll fixed top-0 right-0 bottom-0 z-[61] w-[min(440px,100vw)] bg-card border-l border-border overflow-y-auto"
+            style={{ boxShadow: '-30px 0 60px -30px rgba(24,24,27,.3)' }}>
+            <div className="sticky top-0 border-b border-border px-5 py-4 flex items-center justify-between z-[1] backdrop-blur-md"
+              style={{ background: 'var(--topbar-bg)' }}>
+              <div className="text-[11px] tracking-[.2em] text-muted-foreground">USER ACCOUNT</div>
+              <Button variant="outline" size="icon" onClick={() => setDrawerId(null)} className="h-8 w-8 rounded-[10px] font-mono text-[15px]">✕</Button>
             </div>
 
-            <div style={{ padding: '20px 20px 40px' }}>
-              {/* Identity */}
-              <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 20, color: '#18181b', marginBottom: 4 }}>{drawerUser.name}</div>
-              <div style={{ fontSize: 12, color: '#a1a1aa', marginBottom: 20 }}>{drawerUser.role}</div>
+            <div className="p-5 pb-10">
+              <div className="font-semibold text-[20px] text-foreground mb-1" style={{ fontFamily: 'var(--font-space)' }}>{drawerUser.name}</div>
+              <div className="text-[12px] text-muted-foreground mb-5">{drawerUser.role}</div>
 
-              {/* Stats */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 0', borderTop: '1px solid #f1f1f2', borderBottom: '1px solid #f1f1f2' }}>
-                <div>
-                  <span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>LAST LOGIN</span>
-                  <div style={{ fontSize: 13, color: '#18181b', marginTop: 4 }}>{drawerUser.lastLogin}</div>
-                </div>
-                <div>
-                  <span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>LIFETIME CREDITS</span>
-                  <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 20, color: '#18181b', marginTop: 4 }}>{drawerUser.credits.toLocaleString()}</div>
-                </div>
-                <div>
-                  <span style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em' }}>ACCOUNT STATUS</span>
-                  <div style={{ fontSize: 13, color: '#18181b', marginTop: 4 }}>{drawerUser.enabled ? 'Active' : 'Suspended'}</div>
-                </div>
+              <div className="flex flex-col gap-3.5 py-4 border-t border-b border-border">
+                {[
+                  { label: 'LAST LOGIN', value: drawerUser.lastLogin, mono: false },
+                  { label: 'LIFETIME CREDITS', value: drawerUser.credits.toLocaleString(), bold: true },
+                  { label: 'ACCOUNT STATUS', value: drawerUser.enabled ? 'Active' : 'Suspended', mono: false },
+                ].map(({ label, value, bold }) => (
+                  <div key={label}>
+                    <span className="text-[10px] text-muted-foreground tracking-[.12em]">{label}</span>
+                    <div className={cn('text-[13px] text-foreground mt-1', bold && 'font-semibold text-[20px]')} style={bold ? { fontFamily: 'var(--font-space)' } : undefined}>
+                      {value}
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              {/* ── LOGIN HISTORY ── */}
-              <div style={{ marginTop: 20, paddingBottom: 20, borderBottom: '1px solid #f1f1f2' }}>
-                <div style={{ fontSize: 10, color: '#a1a1aa', letterSpacing: '.12em', marginBottom: 10 }}>LOGIN HISTORY</div>
-
+              <div className="mt-5 pb-5 border-b border-border">
+                <div className="text-[10px] text-muted-foreground tracking-[.12em] mb-2.5">LOGIN HISTORY</div>
                 {logsLoading ? (
-                  <div style={{ fontSize: 11, color: '#a1a1aa', padding: '12px 0' }}>Loading…</div>
+                  <div className="text-[11px] text-muted-foreground py-3">Loading…</div>
                 ) : authLogs.length === 0 ? (
-                  <div style={{ fontSize: 11, color: '#a1a1aa', padding: '12px 0' }}>No login events recorded yet.</div>
+                  <div className="text-[11px] text-muted-foreground py-3">No login events recorded yet.</div>
                 ) : (
-                  <div style={{ maxHeight: 192, overflowY: 'auto' }}>
-                    {/* Column headers */}
-                    <div className="log-row" style={{ borderBottom: '1px solid #e4e4e7', paddingBottom: 6, marginBottom: 2 }}>
+                  <div className="max-h-[192px] overflow-y-auto">
+                    <div className="grid gap-2 items-center pb-1.5 mb-0.5 border-b border-border" style={{ gridTemplateColumns: '90px 1fr 70px 52px' }}>
                       {['TIMESTAMP', 'IP ADDRESS', 'METHOD', 'STATUS'].map((h) => (
-                        <div key={h} style={{ fontSize: 8.5, letterSpacing: '.1em', color: '#a1a1aa', fontWeight: 500 }}>{h}</div>
+                        <div key={h} className="text-[8.5px] tracking-[.1em] text-muted-foreground font-medium">{h}</div>
                       ))}
                     </div>
                     {authLogs.map((log) => (
-                      <div key={log.id} className="log-row">
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#52525b', whiteSpace: 'nowrap' }}>
-                          {fmtTs(log.createdAt)}
-                        </div>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#71717a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {log.ipAddress ?? '—'}
-                        </div>
-                        <div style={{ fontSize: 10, color: '#52525b' }}>
+                      <div key={log.id} className="grid gap-2 items-center py-1.5 border-b border-border/40 last:border-0" style={{ gridTemplateColumns: '90px 1fr 70px 52px' }}>
+                        <div className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">{fmtTs(log.createdAt)}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap">{log.ipAddress ?? '—'}</div>
+                        <div className="text-[10px] text-muted-foreground">
                           {log.authMethod === 'Google SSO'
-                            ? <span style={{ color: '#2563eb' }}>Google</span>
-                            : <span style={{ color: '#71717a' }}>{fmtUA(log.userAgent)}</span>}
+                            ? <span className="text-blue-600 dark:text-blue-400">Google</span>
+                            : <span>{fmtUA(log.userAgent)}</span>}
                         </div>
                         <div>
-                          <span style={{
-                            fontSize: 8.5, letterSpacing: '.08em', fontWeight: 500,
-                            color: log.status === 'Success' ? '#059669' : '#dc2626',
-                            background: log.status === 'Success' ? '#ecfdf5' : '#fef2f2',
-                            border: `1px solid ${log.status === 'Success' ? '#a7f3d0' : '#fecaca'}`,
-                            padding: '2px 6px', borderRadius: 4,
-                          }}>
+                          <Badge variant="outline" className={cn('text-[8.5px] tracking-[.08em] font-medium', log.status === 'Success' ? 'text-[var(--green)] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' : 'text-destructive bg-destructive/10 border-destructive/30')}>
                             {log.status}
-                          </span>
+                          </Badge>
                         </div>
                       </div>
                     ))}
@@ -282,15 +242,15 @@ export default function AdminUsers({
                 )}
               </div>
 
-              {/* Action buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
-                <button
+              <div className="flex flex-col gap-2.5 mt-5">
+                <Button
                   onClick={() => void toggleUser(drawerUser.id)}
-                  style={{ width: '100%', padding: 13, borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 13, cursor: 'pointer', border: 'none', background: drawerUser.enabled ? '#fee2e2' : '#ecfdf5', color: drawerUser.enabled ? '#991b1b' : '#065f46', fontWeight: 500 }}
+                  variant="outline"
+                  className={cn('w-full font-mono text-[13px] font-medium', drawerUser.enabled ? 'text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50' : 'text-[var(--green)] border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 hover:bg-green-100 dark:hover:bg-green-950/50')}
                 >
                   {drawerUser.enabled ? 'Suspend User Account' : 'Reactivate Account'}
-                </button>
-                <button style={{ width: '100%', padding: 13, border: '1px solid #e4e4e7', borderRadius: 11, background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 13, cursor: 'pointer' }}>Reset API Keys</button>
+                </Button>
+                <Button variant="outline" className="w-full font-mono text-[13px]">Reset API Keys</Button>
               </div>
             </div>
           </div>

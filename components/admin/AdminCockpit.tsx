@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type Tenant = { id: string; company: string; roles: number; users: number; region: string; status: string };
 
@@ -14,79 +17,85 @@ export default function AdminCockpit({ tenants }: { tenants: Tenant[] }) {
 
   return (
     <div style={{ maxWidth: 1400, padding: '80px 48px 90px 96px' }} className="animate-rise">
-      {/* Header + nav */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, marginBottom: 32 }}>
+      {/* Header */}
+      <div className="flex items-end justify-between gap-6 mb-8">
         <div>
-          <div style={{ fontSize: 11, letterSpacing: '.22em', color: '#a1a1aa', marginBottom: 14 }}>SYSTEM / SUPER_ADMIN_COCKPIT</div>
-          <h1 style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 44, lineHeight: 1, letterSpacing: '-.02em', margin: 0 }}>
-            System <span style={{ fontWeight: 600 }}>Control Panel</span>
+          <div className="text-[11px] tracking-[.22em] text-muted-foreground mb-3.5">SYSTEM / SUPER_ADMIN_COCKPIT</div>
+          <h1 className="font-light text-[44px] leading-none tracking-[-0.02em] m-0 text-foreground" style={{ fontFamily: 'var(--font-space)' }}>
+            System <span className="font-semibold">Control Panel</span>
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: 8, paddingBottom: 6 }}>
-          <button style={{ padding: '8px 16px', borderRadius: 9, border: 'none', background: '#18181b', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer' }}>Cockpit</button>
-          <Link href="/admin/users" style={{ padding: '8px 16px', borderRadius: 9, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>Users &amp; Usage</Link>
+        <div className="flex gap-2 pb-1.5">
+          <Button className="font-mono text-[12px]">Cockpit</Button>
+          <Link href="/admin/users" className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 py-2 font-mono text-[12px] text-foreground hover:bg-accent transition-colors">
+            Users &amp; Usage
+          </Link>
         </div>
       </div>
 
       {/* Metrics grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 32 }}>
+      <div className="grid grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'TOTAL TENANTS', value: '142', sub: '+12 this week', dot: false },
-          { label: 'AI EVALUATIONS', value: '842,109', sub: 'Avg Parse: 3.1s', dot: false },
-          { label: 'LLM API CALLS', value: '1.2M', sub: 'System healthy', subColor: '#059669', dot: true },
-          { label: 'QUEUE STATUS', value: '0 DELAY', sub: 'Operating nominally', dot: false },
+          { label: 'TOTAL TENANTS', value: '142', sub: '+12 this week', dot: false, subColor: '' },
+          { label: 'AI EVALUATIONS', value: '842,109', sub: 'Avg Parse: 3.1s', dot: false, subColor: '' },
+          { label: 'LLM API CALLS', value: '1.2M', sub: 'System healthy', subColor: 'text-[var(--green)]', dot: true },
+          { label: 'QUEUE STATUS', value: '0 DELAY', sub: 'Operating nominally', dot: false, subColor: '' },
         ].map(({ label, value, sub, subColor, dot }) => (
-          <div key={label} style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 14, padding: 20, boxShadow: '0 1px 2px rgba(24,24,27,.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              {dot && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />}
-              <span style={{ fontSize: 9.5, letterSpacing: '.16em', color: '#a1a1aa' }}>{label}</span>
+          <div key={label} className="bg-card border border-border rounded-[14px] p-5 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-2.5">
+              {dot && <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />}
+              <span className="text-[9.5px] tracking-[.16em] text-muted-foreground">{label}</span>
             </div>
-            <div style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 28, color: '#18181b', marginBottom: 8 }}>{value}</div>
-            <div style={{ fontSize: 10, color: subColor ?? '#a1a1aa' }}>{sub}</div>
+            <div className="font-light text-[28px] text-foreground mb-2" style={{ fontFamily: 'var(--font-space)' }}>{value}</div>
+            <div className={cn('text-[10px]', subColor || 'text-muted-foreground')}>{sub}</div>
           </div>
         ))}
       </div>
 
       {/* Transaction chart */}
-      <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 14, padding: 24, marginBottom: 32, boxShadow: '0 1px 2px rgba(24,24,27,.04)' }}>
-        <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, color: '#18181b', marginBottom: 20 }}>Global Transaction Volume</div>
-        <div style={{ height: 180, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: 4, padding: 20, background: 'linear-gradient(to bottom,transparent 0%,#fafafa 100%)', borderRadius: 10, position: 'relative' }}>
+      <div className="bg-card border border-border rounded-[14px] p-6 mb-8 shadow-sm">
+        <div className="font-semibold text-[16px] text-foreground mb-5" style={{ fontFamily: 'var(--font-space)' }}>Global Transaction Volume</div>
+        <div className="h-[180px] flex items-end justify-around gap-1 px-5 py-5 rounded-[10px] relative"
+          style={{ background: 'linear-gradient(to bottom, transparent 0%, hsl(var(--muted)) 100%)' }}>
           {BAR_HEIGHTS.map((h, i) => (
-            <div key={i} style={{ flex: 1, height: `${h}%`, background: h > 44 ? '#10b981' : '#d4d4d8', borderRadius: 2 }} />
+            <div key={i} className={cn('flex-1 rounded-[2px]', h > 44 ? 'bg-[var(--green)]' : 'bg-muted-foreground/30')} style={{ height: `${h}%` }} />
           ))}
-          <div style={{ fontSize: 8, position: 'absolute', bottom: 0, right: 0, color: '#a1a1aa' }}>30-day span</div>
+          <div className="text-[8px] absolute bottom-0 right-0 text-muted-foreground">30-day span</div>
         </div>
       </div>
 
       {/* Tenants + controls */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="grid gap-6 items-start" style={{ gridTemplateColumns: '2fr 1fr' }}>
         {/* Tenant table */}
-        <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 14, padding: 24, boxShadow: '0 1px 2px rgba(24,24,27,.04)' }}>
-          <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, color: '#18181b', marginBottom: 20 }}>Active Enterprise Tenants</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 90px 80px 1.8fr 80px', gap: 18, padding: '12px 0', borderBottom: '2px solid #e4e4e7', fontSize: 10, letterSpacing: '.12em', color: '#a1a1aa', fontWeight: 500 }}>
+        <div className="bg-card border border-border rounded-[14px] p-6 shadow-sm">
+          <div className="font-semibold text-[16px] text-foreground mb-5" style={{ fontFamily: 'var(--font-space)' }}>Active Enterprise Tenants</div>
+          <div className="grid gap-4 py-3 pb-2 border-b-2 border-border text-[10px] tracking-[.12em] text-muted-foreground font-medium"
+            style={{ gridTemplateColumns: '1.5fr 90px 80px 1.8fr 80px' }}>
             <div>Company Name</div><div>Active Roles</div><div>Total Users</div><div>Data Center Region</div><div>Status</div>
           </div>
           {tenants.map((t) => (
-            <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 90px 80px 1.8fr 80px', gap: 18, alignItems: 'center', padding: '14px 0', borderBottom: '1px solid #f1f1f2', fontSize: 12.5 }}>
-              <div style={{ color: '#18181b', fontWeight: 500 }}>{t.company}</div>
-              <div style={{ color: '#52525b', textAlign: 'center' }}>{t.roles}</div>
-              <div style={{ color: '#52525b', textAlign: 'center' }}>{t.users}</div>
-              <div style={{ color: '#52525b', fontSize: 11 }}>{t.region}</div>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ fontSize: 9, letterSpacing: '.12em', color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '3px 9px', borderRadius: 5 }}>{t.status}</span>
+            <div key={t.id} className="grid gap-4 items-center py-3.5 border-b border-border/50 text-[12.5px]"
+              style={{ gridTemplateColumns: '1.5fr 90px 80px 1.8fr 80px' }}>
+              <div className="font-medium text-foreground">{t.company}</div>
+              <div className="text-muted-foreground text-center">{t.roles}</div>
+              <div className="text-muted-foreground text-center">{t.users}</div>
+              <div className="text-muted-foreground text-[11px]">{t.region}</div>
+              <div className="text-center">
+                <Badge variant="outline" className="text-[9px] tracking-[.12em] text-[var(--green)] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+                  {t.status}
+                </Badge>
               </div>
             </div>
           ))}
         </div>
 
         {/* System config */}
-        <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 14, padding: 24, boxShadow: '0 1px 2px rgba(24,24,27,.04)' }}>
-          <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16, color: '#18181b', marginBottom: 22 }}>System Configuration</div>
+        <div className="bg-card border border-border rounded-[14px] p-6 shadow-sm">
+          <div className="font-semibold text-[16px] text-foreground mb-5" style={{ fontFamily: 'var(--font-space)' }}>System Configuration</div>
 
-          {/* Model selector */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 12 }}>LLM MODEL ENGINE</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="mb-7">
+            <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-3">LLM MODEL ENGINE</div>
+            <div className="flex flex-col gap-2">
               {MODELS.map((m) => {
                 const isDisabled = m === 'Open-Source Llama 3 (Beta)';
                 const isActive = model === m;
@@ -95,27 +104,30 @@ export default function AdminCockpit({ tenants }: { tenants: Tenant[] }) {
                     key={m}
                     onClick={() => !isDisabled && setModel(m)}
                     disabled={isDisabled}
-                    style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 9, border: `1px solid ${isActive ? '#a7f3d0' : '#e4e4e7'}`, background: isActive ? '#ecfdf5' : '#fff', color: isActive ? '#059669' : '#18181b', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: isDisabled ? 'not-allowed' : 'pointer', opacity: isDisabled ? 0.5 : 1, transition: 'all .2s' }}
+                    className={cn(
+                      'text-left px-3.5 py-3 rounded-[9px] border font-mono text-[12px] cursor-pointer transition-all',
+                      isActive ? 'border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/30 text-[var(--green)]' : 'border-border bg-card text-foreground hover:border-muted-foreground/40',
+                      isDisabled && 'opacity-50 cursor-not-allowed'
+                    )}
                   >{m}</button>
                 );
               })}
             </div>
           </div>
 
-          {/* Maintenance toggle */}
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 12 }}>MAINTENANCE MODE</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, background: '#fafafa', border: '1px solid #e4e4e7', borderRadius: 9 }}>
+          <div className="border-t border-border pt-5">
+            <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-3">SYSTEM CONTROLS</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[13px] font-medium text-foreground">Maintenance Mode</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">Disable new AI evaluations</div>
+              </div>
               <button
                 onClick={() => setMaintenance(!maintenance)}
-                style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: maintenance ? '#059669' : '#d4d4d8', cursor: 'pointer', position: 'relative', transition: 'all .3s' }}
+                className={cn('relative w-10 h-6 rounded-full border-none cursor-pointer transition-colors', maintenance ? 'bg-amber-500' : 'bg-muted-foreground/30')}
               >
-                <div style={{ position: 'absolute', width: 24, height: 24, borderRadius: 12, background: '#fff', top: 2, left: maintenance ? 22 : 2, transition: 'left .3s' }} />
+                <span className={cn('absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-[left_.2s]', maintenance ? 'left-[18px]' : 'left-[3px]')} />
               </button>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 500, color: '#18181b' }}>{maintenance ? 'Enabled' : 'Disabled'}</div>
-                <div style={{ fontSize: 10, color: '#a1a1aa', marginTop: 2 }}>{maintenance ? 'App in read-only mode' : 'System running normally'}</div>
-              </div>
             </div>
           </div>
         </div>

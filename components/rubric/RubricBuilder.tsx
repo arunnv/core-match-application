@@ -3,14 +3,15 @@
 import { useState, useRef, useCallback, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { parseJobDescription } from '@/lib/actions/parse-jd';
-
-// ─── Types ───────────────────────────────────────────────────────────────────
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 type Competency = {
   id: string;
   name: string;
   level: 'CORE' | 'IMPORTANT' | 'BONUS';
-  weight: number;   // integer 0-100
+  weight: number;
   sortOrder: number;
   mandatory: boolean;
 };
@@ -30,17 +31,13 @@ type Props = {
   initialCompetencies: { id: string; name: string; level: string; weight: number; sortOrder: number; mandatory: boolean }[];
 };
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
 const LEVELS = ['CORE', 'IMPORTANT', 'BONUS'] as const;
 const BAR_COLORS = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5'];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function levelStyle(level: string) {
-  if (level === 'CORE')      return { color: '#059669', bg: '#ecfdf5', bd: '#a7f3d0' };
-  if (level === 'IMPORTANT') return { color: '#0369a1', bg: '#eff6ff', bd: '#bfdbfe' };
-  return                            { color: '#71717a', bg: '#f4f4f5', bd: '#e4e4e7' };
+  if (level === 'CORE')      return { color: '#059669', bg: 'bg-green-50 dark:bg-green-950/30', bd: 'border-green-200 dark:border-green-800', text: 'text-[#059669]' };
+  if (level === 'IMPORTANT') return { color: '#0369a1', bg: 'bg-blue-50 dark:bg-blue-950/30', bd: 'border-blue-200 dark:border-blue-800', text: 'text-blue-700 dark:text-blue-400' };
+  return                            { color: '#71717a', bg: 'bg-muted', bd: 'border-border', text: 'text-muted-foreground' };
 }
 
 function cycleLevel(current: string): 'CORE' | 'IMPORTANT' | 'BONUS' {
@@ -49,33 +46,18 @@ function cycleLevel(current: string): 'CORE' | 'IMPORTANT' | 'BONUS' {
 
 function uid() { return `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
-// ─── Toggle switch ────────────────────────────────────────────────────────────
-
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       role="switch"
       aria-checked={on}
       onClick={() => onChange(!on)}
-      style={{
-        position: 'relative', width: 32, height: 18, borderRadius: 9,
-        background: on ? '#059669' : '#d4d4d8',
-        border: 'none', cursor: 'pointer', flexShrink: 0,
-        transition: 'background .2s',
-        padding: 0,
-      }}
+      className={cn('relative w-8 h-[18px] rounded-[9px] border-none cursor-pointer shrink-0 transition-colors p-0', on ? 'bg-[var(--green)]' : 'bg-muted-foreground/30')}
     >
-      <span style={{
-        position: 'absolute', top: 2, left: on ? 16 : 2,
-        width: 14, height: 14, borderRadius: '50%',
-        background: '#fff', transition: 'left .2s',
-        boxShadow: '0 1px 3px rgba(0,0,0,.2)',
-      }} />
+      <span className={cn('absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-[left_.2s] shadow-sm', on ? 'left-[18px]' : 'left-[2px]')} />
     </button>
   );
 }
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function RubricBuilder({
   jobId, jobTitle, jobCode, jobLocation, jobWorkMode,
@@ -84,16 +66,15 @@ export default function RubricBuilder({
 }: Props) {
   const router = useRouter();
 
-  // ── Job meta ──
   const [meta, setMeta] = useState({ title: jobTitle, code: jobCode, location: jobLocation, workMode: jobWorkMode, experience: jobExperience, contractDuration: jobContractDuration, description: jobDescription });
   const [editMode, setEditMode] = useState(false);
   const [editDraft, setEditDraft] = useState(meta);
   const [metaSaving, setMetaSaving] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
 
-  const openEdit  = () => { setEditDraft(meta); setEditMode(true); };
+  const openEdit   = () => { setEditDraft(meta); setEditMode(true); };
   const cancelEdit = () => setEditMode(false);
-  const saveMeta  = async () => {
+  const saveMeta   = async () => {
     setMetaSaving(true);
     try {
       const res = await fetch(`/api/jobs/${jobId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editDraft) });
@@ -101,24 +82,16 @@ export default function RubricBuilder({
     } finally { setMetaSaving(false); }
   };
 
-  // ── Competencies ──
   const toComp = (c: Props['initialCompetencies'][number]): Competency => ({
     id: c.id, name: c.name,
     level: (LEVELS.includes(c.level as typeof LEVELS[number]) ? c.level : 'IMPORTANT') as Competency['level'],
-    weight: Math.round(c.weight),
-    sortOrder: c.sortOrder,
-    mandatory: c.mandatory,
+    weight: Math.round(c.weight), sortOrder: c.sortOrder, mandatory: c.mandatory,
   });
 
-  const [comps, setComps] = useState<Competency[]>(
-    initialCompetencies.length > 0 ? initialCompetencies.map(toComp) : []
-  );
-
-  // Derived: sum of weights
+  const [comps, setComps] = useState<Competency[]>(initialCompetencies.length > 0 ? initialCompetencies.map(toComp) : []);
   const total = comps.reduce((s, c) => s + c.weight, 0);
   const balanced = total === 100;
 
-  // ── AI parse ──
   const [aiParsing, startAiParse] = useTransition();
   const [aiError, setAiError] = useState<string | null>(null);
 
@@ -129,16 +102,11 @@ export default function RubricBuilder({
     startAiParse(async () => {
       const result = await parseJobDescription(jd);
       if (!result.ok) { setAiError(result.error); return; }
-      setComps(result.criteria.map((c, i) => ({
-        id: uid(), name: c.name,
-        level: c.level, weight: c.weightPercentage,
-        sortOrder: i, mandatory: c.mandatory,
-      })));
+      setComps(result.criteria.map((c, i) => ({ id: uid(), name: c.name, level: c.level, weight: c.weightPercentage, sortOrder: i, mandatory: c.mandatory })));
       setSaveState('idle');
     });
   };
 
-  // ── Save ──
   const [saveState, setSaveState] = useState<SaveState>(initialCompetencies.length > 0 ? 'saved' : 'idle');
   const saveRubric = async () => {
     setSaveState('saving');
@@ -150,28 +118,18 @@ export default function RubricBuilder({
     } catch { setSaveState('error'); }
   };
 
-  // ── Competency mutation helpers ──
-  const updateComp = (id: string, patch: Partial<Competency>) => {
-    setComps((prev) => prev.map((c) => c.id === id ? { ...c, ...patch } : c));
-    setSaveState('idle');
-  };
-
-  const removeComp = (id: string) => {
-    setComps((prev) => prev.filter((c) => c.id !== id));
-    setSaveState('idle');
-  };
-
+  const updateComp = (id: string, patch: Partial<Competency>) => { setComps((prev) => prev.map((c) => c.id === id ? { ...c, ...patch } : c)); setSaveState('idle'); };
+  const removeComp = (id: string) => { setComps((prev) => prev.filter((c) => c.id !== id)); setSaveState('idle'); };
   const addComp = () => {
     const leftover = Math.max(0, 100 - total);
     setComps((prev) => [...prev, { id: uid(), name: '', level: 'IMPORTANT', weight: leftover > 0 ? leftover : 10, sortOrder: prev.length, mandatory: false }]);
     setSaveState('idle');
   };
 
-  // ── Upload / drop ──
-  const [dropState, setDropState]   = useState<DropState>('idle');
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [addedCount, setAddedCount]  = useState(0);
-  const [stats, setStats]            = useState({ total: 0, processing: 0, scored: 0 });
+  const [dropState, setDropState]     = useState<DropState>('idle');
+  const [uploadError, setUploadError]  = useState<string | null>(null);
+  const [addedCount, setAddedCount]    = useState(0);
+  const [stats, setStats]              = useState({ total: 0, processing: 0, scored: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchStats = useCallback(async () => {
@@ -203,37 +161,29 @@ export default function RubricBuilder({
     } catch { setUploadError('Network error.'); setDropState('error'); }
   };
 
-  const handleDrop       = (e: React.DragEvent)                  => { e.preventDefault(); void uploadFiles(e.dataTransfer.files); };
-  const handleFileInput  = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.length) void uploadFiles(e.target.files); e.target.value = ''; };
-
-  // ─── Derived UI values ──────────────────────────────────────────────────────
-
-  const totalBadgeStyle: React.CSSProperties = balanced
-    ? { color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0' }
-    : { color: '#d97706', background: '#fffbeb', border: '1px solid #fcd34d' };
+  const handleDrop      = (e: React.DragEvent)                    => { e.preventDefault(); void uploadFiles(e.dataTransfer.files); };
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.length) void uploadFiles(e.target.files); e.target.value = ''; };
 
   const saveDisabled = saveState === 'saving' || !balanced || comps.length === 0 || comps.some((c) => !c.name.trim());
-  const saveBg       = saveState === 'saved' ? '#059669' : saveState === 'error' ? '#ef4444' : '#18181b';
-  const saveLabel    = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? '✓ Saved' : saveState === 'error' ? 'Save failed' : 'Save Rubric';
+  const saveBtnVariant = saveState === 'saved' ? 'default' : saveState === 'error' ? 'destructive' : 'default';
+  const saveLabel = saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? '✓ Saved' : saveState === 'error' ? 'Save failed' : 'Save Rubric';
 
-  const dropBorder = dropState === 'over' ? '2px dashed #059669' : dropState === 'uploading' ? '2px solid #a7f3d0' : dropState === 'done' ? '2px solid #6ee7b7' : dropState === 'error' ? '2px dashed #fca5a5' : '2px dashed #d4d4d8';
-  const dropBg     = dropState === 'over' ? '#ecfdf5' : dropState === 'done' ? '#ecfdf5' : dropState === 'error' ? '#fff5f5' : '#fafafa';
-  const dropTitle  = dropState === 'over' ? 'Release to upload' : dropState === 'uploading' ? 'Uploading résumés…' : dropState === 'done' ? `${addedCount} résumé${addedCount !== 1 ? 's' : ''} added` : dropState === 'error' ? 'Upload failed' : 'Drop résumés here';
-  const dropSub    = dropState === 'uploading' ? 'Extracting skills…' : dropState === 'done' ? 'Scoring in background.' : dropState === 'error' ? (uploadError ?? 'Please retry.') : 'Drag files or click to browse.';
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  const dropBg = dropState === 'over' ? 'bg-green-50/60 dark:bg-green-950/20' : dropState === 'done' ? 'bg-green-50/60 dark:bg-green-950/20' : dropState === 'error' ? 'bg-red-50/50 dark:bg-red-950/20' : 'bg-muted/40';
+  const dropBorderClass = dropState === 'over' ? 'border-[var(--green)]' : dropState === 'uploading' ? 'border-green-300' : dropState === 'done' ? 'border-green-400' : dropState === 'error' ? 'border-destructive/50' : 'border-muted-foreground/30';
+  const dropTitle = dropState === 'over' ? 'Release to upload' : dropState === 'uploading' ? 'Uploading résumés…' : dropState === 'done' ? `${addedCount} résumé${addedCount !== 1 ? 's' : ''} added` : dropState === 'error' ? 'Upload failed' : 'Drop résumés here';
+  const dropSub   = dropState === 'uploading' ? 'Extracting skills…' : dropState === 'done' ? 'Scoring in background.' : dropState === 'error' ? (uploadError ?? 'Please retry.') : 'Drag files or click to browse.';
 
   return (
     <div style={{ maxWidth: 1180, padding: '80px 48px 80px 96px' }} className="animate-rise">
 
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, marginBottom: 0 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.22em', color: '#a1a1aa', marginBottom: 14 }}>JOB ROLE / RUBRIC BUILDER</div>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-6 mb-0">
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] tracking-[.22em] text-muted-foreground mb-3.5">JOB ROLE / RUBRIC BUILDER</div>
 
           {editMode ? (
-            <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 16, padding: 24 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <div className="grid grid-cols-2 gap-3 mb-3">
                 {([
                   { label: 'JOB TITLE', key: 'title', span: true },
                   { label: 'JOB CODE', key: 'code' },
@@ -241,235 +191,215 @@ export default function RubricBuilder({
                   { label: 'EXPERIENCE', key: 'experience' },
                   { label: 'CONTRACT DURATION', key: 'contractDuration' },
                 ] as { label: string; key: keyof typeof editDraft; span?: boolean }[]).map(({ label, key, span }) => (
-                  <div key={key} style={{ gridColumn: span ? '1 / -1' : undefined }}>
-                    <div style={{ fontSize: 9, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 5 }}>{label}</div>
-                    <input value={editDraft[key]} onChange={(e) => setEditDraft((d) => ({ ...d, [key]: e.target.value }))}
-                      style={{ width: '100%', border: '1px solid #e4e4e7', borderRadius: 8, padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: 12.5, color: '#18181b', background: '#fafafa', outline: 'none', boxSizing: 'border-box' }} />
+                  <div key={key} className={span ? 'col-span-2' : undefined}>
+                    <div className="text-[9px] tracking-[.14em] text-muted-foreground mb-1">{label}</div>
+                    <Input
+                      value={editDraft[key]}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, [key]: e.target.value }))}
+                      className="font-mono text-[12.5px]"
+                    />
                   </div>
                 ))}
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 9, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 5 }}>ROLE DESCRIPTION</div>
-                <textarea value={editDraft.description} onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))} rows={5}
-                  style={{ width: '100%', border: '1px solid #e4e4e7', borderRadius: 8, padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: 12, color: '#18181b', background: '#fafafa', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+              <div className="mb-4">
+                <div className="text-[9px] tracking-[.14em] text-muted-foreground mb-1">ROLE DESCRIPTION</div>
+                <textarea
+                  value={editDraft.description}
+                  onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                  rows={5}
+                  className="w-full border border-border rounded-[8px] px-3 py-2.5 font-mono text-[12px] text-foreground bg-muted/40 outline-none resize-y box-border focus:border-muted-foreground/40 transition-colors"
+                />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button onClick={cancelEdit} style={{ padding: '8px 16px', borderRadius: 9, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
-                <button onClick={saveMeta} disabled={metaSaving} style={{ padding: '8px 18px', borderRadius: 9, border: 'none', background: '#18181b', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: 12, cursor: metaSaving ? 'not-allowed' : 'pointer', opacity: metaSaving ? .6 : 1 }}>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={cancelEdit} className="font-mono text-[12px]">Cancel</Button>
+                <Button onClick={saveMeta} disabled={metaSaving} className="font-mono text-[12px]">
                   {metaSaving ? 'Saving…' : 'Save Changes'}
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
             <>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <h1 style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 'clamp(28px,3.5vw,46px)', lineHeight: 1.02, letterSpacing: '-.02em', margin: 0 }}
-                  dangerouslySetInnerHTML={{ __html: meta.title.replace(/\s(\S+)$/, ' <span style="font-weight:600">$1</span>') }} />
-                <button onClick={openEdit} style={{ marginTop: 6, flexShrink: 0, padding: '4px 10px', border: '1px solid #e4e4e7', borderRadius: 7, background: '#fff', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: '#71717a', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <div className="flex items-start gap-3.5">
+                <h1
+                  className="font-light leading-[1.02] tracking-[-0.02em] m-0 text-foreground"
+                  style={{ fontFamily: 'var(--font-space)', fontSize: 'clamp(28px,3.5vw,46px)' }}
+                  dangerouslySetInnerHTML={{ __html: meta.title.replace(/\s(\S+)$/, ' <span style="font-weight:600">$1</span>') }}
+                />
+                <Button variant="outline" size="sm" onClick={openEdit} className="mt-1.5 shrink-0 font-mono text-[10px] tracking-[.1em]">
                   EDIT INFO
-                </button>
+                </Button>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0, marginTop: 16, fontFamily: 'var(--font-mono)', fontSize: 11, color: '#71717a' }}>
+              <div className="flex flex-wrap items-center gap-0 mt-4 font-mono text-[11px] text-muted-foreground">
                 {[meta.location, `Req #${meta.code}`, meta.experience ? `Exp: ${meta.experience}` : null, meta.contractDuration ? `Duration: ${meta.contractDuration}` : null]
                   .filter(Boolean).map((item, i, arr) => (
-                    <span key={i} style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ padding: '3px 10px', background: '#f4f4f5', border: '1px solid #e4e4e7', borderRadius: 6 }}>{item}</span>
-                      {i < arr.length - 1 && <span style={{ color: '#d4d4d8', margin: '0 6px', fontSize: 14 }}>·</span>}
+                    <span key={i} className="flex items-center">
+                      <span className="px-2.5 py-0.5 bg-muted border border-border rounded-[6px]">{item}</span>
+                      {i < arr.length - 1 && <span className="text-border mx-1.5 text-[14px]">·</span>}
                     </span>
                   ))}
               </div>
             </>
           )}
 
-          {/* Collapsible description */}
           {!editMode && (
-            <div style={{ marginTop: 14 }}>
-              <button onClick={() => setDescOpen((o) => !o)}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px dashed #d4d4d8', borderRadius: 7, padding: '5px 12px', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '.1em', color: '#a1a1aa', cursor: 'pointer' }}>
-                <span style={{ fontSize: 12, lineHeight: 1 }}>{descOpen ? '−' : '+'}</span>
+            <div className="mt-3.5">
+              <button
+                onClick={() => setDescOpen((o) => !o)}
+                className="flex items-center gap-1.5 bg-transparent border border-dashed border-muted-foreground/40 rounded-[7px] px-3 py-1.5 font-mono text-[10px] tracking-[.1em] text-muted-foreground cursor-pointer hover:border-muted-foreground/60 transition-colors"
+              >
+                <span className="text-[12px] leading-none">{descOpen ? '−' : '+'}</span>
                 {descOpen ? 'HIDE ROLE DESCRIPTION' : 'VIEW ROLE DESCRIPTION'}
               </button>
               {descOpen && (
-                <div style={{ marginTop: 10, padding: '14px 16px', border: '1px dashed #e4e4e7', borderRadius: 10, background: '#fafafa', fontSize: 12.5, lineHeight: 1.7, color: '#52525b', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', maxHeight: 240, overflowY: 'auto' }}>
-                  {meta.description || <span style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No description yet — click EDIT INFO to add one.</span>}
+                <div className="mt-2.5 p-4 border border-dashed border-border rounded-[10px] bg-muted/40 text-[12.5px] leading-[1.7] text-muted-foreground font-mono whitespace-pre-wrap max-h-[240px] overflow-y-auto">
+                  {meta.description || <span className="text-muted-foreground/60 italic">No description yet — click EDIT INFO to add one.</span>}
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* ── RUBRIC TOTAL badge ── */}
-        <div style={{ textAlign: 'right', flexShrink: 0, paddingTop: 28 }}>
-          <div style={{ fontSize: 9.5, letterSpacing: '.18em', color: '#a1a1aa', marginBottom: 8 }}>RUBRIC TOTAL</div>
-          <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 2, padding: '8px 16px', borderRadius: 12, ...totalBadgeStyle }}>
-            <span style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 34, lineHeight: 1 }}>{total}</span>
-            <span style={{ fontSize: 16, fontFamily: 'var(--font-space)' }}>%</span>
+        {/* Rubric total */}
+        <div className="text-right shrink-0 pt-7">
+          <div className="text-[9.5px] tracking-[.18em] text-muted-foreground mb-2">RUBRIC TOTAL</div>
+          <div className={cn('inline-flex items-baseline gap-0.5 px-4 py-2 rounded-xl border', balanced ? 'text-[var(--green)] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' : 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800')}>
+            <span className="font-bold text-[34px] leading-none" style={{ fontFamily: 'var(--font-space)' }}>{total}</span>
+            <span className="text-[16px]" style={{ fontFamily: 'var(--font-space)' }}>%</span>
           </div>
           {!balanced && (
-            <div style={{ fontSize: 10, color: '#d97706', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
+            <div className="text-[10px] text-amber-600 mt-1.5 font-mono">
               {total > 100 ? `−${total - 100}% over` : `+${100 - total}% remaining`}
             </div>
           )}
-          {balanced && <div style={{ fontSize: 10, color: '#059669', marginTop: 6, fontFamily: 'var(--font-mono)' }}>balanced ✓</div>}
+          {balanced && <div className="text-[10px] text-[var(--green)] mt-1.5 font-mono">balanced ✓</div>}
         </div>
       </div>
 
-      {/* ── Main grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 34, marginTop: 40, alignItems: 'start' }}>
+      {/* Main grid */}
+      <div className="grid gap-8 mt-10 items-start" style={{ gridTemplateColumns: '1.55fr 1fr' }}>
 
-        {/* ── Rubric card ── */}
-        <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 18, padding: '28px 28px 24px', boxShadow: '0 1px 2px rgba(24,24,27,.04)' }}>
-
-          {/* Card header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 10, flexWrap: 'wrap' }}>
+        {/* Rubric card */}
+        <div className="bg-card border border-border rounded-[18px] p-7 shadow-sm">
+          <div className="flex items-center justify-between mb-1.5 gap-2.5 flex-wrap">
             <div>
-              <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 16 }}>Weighted Competency Rubric</div>
-              <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 3 }}>Edit names inline · adjust weights · toggle mandatory · save when balanced.</div>
+              <div className="font-semibold text-[16px] text-foreground" style={{ fontFamily: 'var(--font-space)' }}>Weighted Competency Rubric</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">Edit names inline · adjust weights · toggle mandatory · save when balanced.</div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              {/* AI parse button */}
-              <button
+            <div className="flex gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleAiParse}
                 disabled={aiParsing}
-                title={meta.description ? 'Auto-generate criteria from role description' : 'Add a role description first'}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: aiParsing ? '#a1a1aa' : '#7c3aed', background: aiParsing ? '#f4f4f5' : '#f5f3ff', border: `1px solid ${aiParsing ? '#e4e4e7' : '#ddd6fe'}`, padding: '6px 12px', borderRadius: 8, cursor: aiParsing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+                className={cn('font-mono text-[11px] gap-1.5', !aiParsing && 'text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 hover:bg-violet-100 dark:hover:bg-violet-950/50')}
               >
                 {aiParsing ? (
-                  <span className="spin-anim" style={{ width: 11, height: 11, border: '1.5px solid #d4d4d8', borderTopColor: '#7c3aed', borderRadius: '50%', display: 'inline-block' }} />
+                  <span className="spin-anim w-[11px] h-[11px] border-[1.5px] border-violet-300 border-t-violet-700 rounded-full inline-block" />
                 ) : (
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 1l1.5 3 3.5.5-2.5 2.4.6 3.5L8 9l-3.1 1.4.6-3.5L3 4.5l3.5-.5z" stroke="#7c3aed" strokeWidth="1.3" strokeLinejoin="round" />
-                  </svg>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 3 3.5.5-2.5 2.4.6 3.5L8 9l-3.1 1.4.6-3.5L3 4.5l3.5-.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
                 )}
                 {aiParsing ? 'Parsing JD…' : 'AI Parse JD'}
-              </button>
-              <button onClick={addComp} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#71717a', background: '#f4f4f5', border: '1px solid #e4e4e7', padding: '6px 11px', borderRadius: 8, cursor: 'pointer' }}>+ Add</button>
-              <button
+              </Button>
+              <Button variant="outline" size="sm" onClick={addComp} className="font-mono text-[11px]">+ Add</Button>
+              <Button
+                size="sm"
                 onClick={saveRubric}
                 disabled={saveDisabled}
-                title={!balanced ? 'Weights must sum to exactly 100% before saving' : comps.some((c) => !c.name.trim()) ? 'All competencies need a name' : undefined}
-                style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#fff', background: saveDisabled ? '#d4d4d8' : saveBg, border: 'none', padding: '6px 14px', borderRadius: 8, cursor: saveDisabled ? 'not-allowed' : 'pointer', transition: 'background .2s' }}
+                className={cn('font-mono text-[11px]', saveState === 'saved' && 'bg-[var(--green)] hover:bg-[var(--green-dark)] border-transparent', saveState === 'error' && 'bg-destructive hover:bg-destructive/90 border-transparent')}
               >
                 {saveLabel}
-              </button>
+              </Button>
             </div>
           </div>
 
-          {/* AI error */}
           {aiError && (
-            <div style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 11, color: '#b91c1c', fontFamily: 'var(--font-mono)' }}>
-              {aiError}
-            </div>
+            <div className="mt-2.5 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-[8px] text-[11px] text-destructive font-mono">{aiError}</div>
           )}
 
-          {/* Column headers */}
           {comps.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 36px 56px 20px', gap: 10, alignItems: 'center', padding: '14px 0 6px', borderBottom: '1px solid #f1f1f2' }}>
+            <div className="grid gap-2.5 items-center py-3.5 pb-1.5 border-b border-border" style={{ gridTemplateColumns: '1fr 90px 36px 56px 20px' }}>
               {['COMPETENCY', 'LEVEL', 'WT %', 'MANDATORY', ''].map((h) => (
-                <div key={h} style={{ fontSize: 9, letterSpacing: '.14em', color: '#a1a1aa', fontFamily: 'var(--font-mono)' }}>{h}</div>
+                <div key={h} className="text-[9px] tracking-[.14em] text-muted-foreground font-mono">{h}</div>
               ))}
             </div>
           )}
 
-          {/* Empty state */}
           {comps.length === 0 && !aiParsing && (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: '#a1a1aa' }}>
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ margin: '0 auto 12px', display: 'block', opacity: .4 }}>
-                <rect x="4" y="8" width="24" height="18" rx="3" stroke="#a1a1aa" strokeWidth="1.5" />
-                <path d="M4 13h24M11 8V6M21 8V6" stroke="#a1a1aa" strokeWidth="1.5" strokeLinecap="round" />
+            <div className="text-center py-9 text-muted-foreground">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="mx-auto mb-3 opacity-40">
+                <rect x="4" y="8" width="24" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M4 13h24M11 8V6M21 8V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#52525b', marginBottom: 6 }}>No competencies yet</div>
-              <div style={{ fontSize: 11 }}>Click <strong>AI Parse JD</strong> to auto-generate, or <strong>+ Add</strong> manually.</div>
+              <div className="text-[13px] font-medium text-foreground mb-1.5">No competencies yet</div>
+              <div className="text-[11px]">Click <strong>AI Parse JD</strong> to auto-generate, or <strong>+ Add</strong> manually.</div>
             </div>
           )}
 
           {aiParsing && (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: '#7c3aed' }}>
-              <span className="spin-anim" style={{ width: 28, height: 28, border: '3px solid #ddd6fe', borderTopColor: '#7c3aed', borderRadius: '50%', display: 'inline-block', marginBottom: 12 }} />
-              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: '#7c3aed' }}>Gemini is reading the JD…</div>
+            <div className="text-center py-9 text-violet-600 dark:text-violet-400">
+              <span className="spin-anim w-7 h-7 border-[3px] border-violet-200 border-t-violet-600 rounded-full inline-block mb-3" />
+              <div className="text-[12px] font-mono">Gemini is reading the JD…</div>
             </div>
           )}
 
-          {/* Competency rows */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="flex flex-col">
             {comps.map((c, i) => {
               const ls = levelStyle(c.level);
               return (
-                <div key={c.id} style={{ borderBottom: '1px solid #f4f4f5', padding: '14px 0' }}>
-                  {/* Row: name · level · weight% · mandatory · remove */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 36px 56px 20px', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-
-                    {/* Inline name input */}
+                <div key={c.id} className="border-b border-border/50 py-3.5">
+                  <div className="grid gap-2.5 items-center mb-2.5" style={{ gridTemplateColumns: '1fr 90px 36px 56px 20px' }}>
                     <input
                       value={c.name}
                       onChange={(e) => updateComp(c.id, { name: e.target.value })}
                       placeholder="Competency name…"
-                      style={{ border: 'none', borderBottom: `1px solid ${c.name.trim() ? '#e4e4e7' : '#fca5a5'}`, background: 'transparent', fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 500, color: '#18181b', outline: 'none', padding: '2px 0', width: '100%' }}
+                      className={cn('border-0 border-b bg-transparent font-mono text-[13px] font-medium text-foreground outline-none py-0.5 w-full', c.name.trim() ? 'border-border' : 'border-destructive/50')}
                     />
-
-                    {/* Level badge toggle */}
                     <button
                       onClick={() => updateComp(c.id, { level: cycleLevel(c.level) })}
-                      title="Click to cycle level"
-                      style={{ fontSize: 9, letterSpacing: '.12em', color: ls.color, background: ls.bg, border: `1px solid ${ls.bd}`, padding: '4px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', textAlign: 'center' }}
+                      className={cn('text-[9px] tracking-[.12em] px-2 py-1 rounded-[6px] cursor-pointer font-mono whitespace-nowrap text-center border', ls.bg, ls.bd, ls.text)}
                     >
                       {c.level}
                     </button>
-
-                    {/* Weight % display */}
-                    <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 15, color: '#18181b', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                    <div className="font-semibold text-[15px] text-foreground text-center" style={{ fontFamily: 'var(--font-space)', fontVariantNumeric: 'tabular-nums' }}>
                       {c.weight}
                     </div>
-
-                    {/* Mandatory toggle */}
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div className="flex justify-center">
                       <Toggle on={c.mandatory} onChange={(v) => updateComp(c.id, { mandatory: v })} />
                     </div>
-
-                    {/* Remove */}
-                    <button
-                      onClick={() => removeComp(c.id)}
-                      style={{ fontSize: 13, color: '#d4d4d8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}
-                      title="Remove"
-                    >✕</button>
+                    <button onClick={() => removeComp(c.id)} className="text-[13px] text-muted-foreground/50 bg-transparent border-none cursor-pointer p-0 leading-none hover:text-muted-foreground transition-colors" title="Remove">✕</button>
                   </div>
-
-                  {/* Weight range slider */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="flex items-center gap-2.5">
                     <input
-                      type="range"
-                      min={1}
-                      max={100}
-                      value={c.weight}
-                      onChange={(e) => { updateComp(c.id, { weight: Number(e.target.value) }); }}
-                      style={{ flex: 1, accentColor: i < BAR_COLORS.length ? BAR_COLORS[i] : '#059669', height: 4, cursor: 'ew-resize' }}
+                      type="range" min={1} max={100} value={c.weight}
+                      onChange={(e) => updateComp(c.id, { weight: Number(e.target.value) })}
+                      className="flex-1 h-1 cursor-ew-resize"
+                      style={{ accentColor: i < BAR_COLORS.length ? BAR_COLORS[i] : '#059669' }}
                     />
-                    <div style={{ width: 28, height: 6, borderRadius: 3, background: i < BAR_COLORS.length ? BAR_COLORS[i] : '#059669', opacity: .7, flexShrink: 0 }} />
+                    <div className="w-7 h-1.5 rounded-full opacity-70 shrink-0" style={{ background: i < BAR_COLORS.length ? BAR_COLORS[i] : '#059669' }} />
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Stacked bar summary */}
           {comps.length > 0 && (
-            <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #e4e4e7' }}>
-              <div style={{ height: 8, borderRadius: 5, overflow: 'hidden', display: 'flex', background: '#f4f4f5' }}>
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="h-2 rounded-[5px] overflow-hidden flex bg-muted">
                 {comps.map((c, i) => (
-                  <div key={c.id} title={`${c.name}: ${c.weight}%`} style={{ height: '100%', width: `${c.weight}%`, background: i < BAR_COLORS.length ? BAR_COLORS[i] : '#059669', transition: 'width .3s cubic-bezier(.22,1,.36,1)', flexShrink: 0 }} />
+                  <div key={c.id} title={`${c.name}: ${c.weight}%`} className="h-full shrink-0 transition-[width_.3s_cubic-bezier(.22,1,.36,1)]" style={{ width: `${c.weight}%`, background: i < BAR_COLORS.length ? BAR_COLORS[i] : '#059669' }} />
                 ))}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 10, color: '#a1a1aa', fontFamily: 'var(--font-mono)' }}>
+              <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-mono">
                 <span>{comps.length} competencies</span>
-                {!balanced && <span style={{ color: '#d97706' }}>⚠ Weights must total 100% to save</span>}
+                {!balanced && <span className="text-amber-600">⚠ Weights must total 100% to save</span>}
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Right column ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <input ref={fileInputRef} type="file" multiple accept=".pdf,.doc,.docx,.txt" style={{ display: 'none' }} onChange={handleFileInput} />
+        {/* Right column */}
+        <div className="flex flex-col gap-5">
+          <input ref={fileInputRef} type="file" multiple accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileInput} />
 
           {/* Drop zone */}
           <div
@@ -478,9 +408,14 @@ export default function RubricBuilder({
             onDragLeave={(e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropState('idle'); }}
             onDrop={handleDrop}
             onClick={() => { if (['idle','error','done'].includes(dropState)) fileInputRef.current?.click(); }}
-            style={{ borderRadius: 18, padding: '28px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', cursor: 'pointer', transition: 'all .3s', border: dropBorder, background: dropBg }}
+            className={cn('rounded-[18px] p-7 flex flex-col items-center text-center cursor-pointer border-2 border-dashed transition-all', dropBg, dropBorderClass)}
           >
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: dropState === 'over' || dropState === 'done' ? '#059669' : dropState === 'error' ? '#fee2e2' : '#f4f4f5', color: dropState === 'over' || dropState === 'done' ? '#fff' : dropState === 'error' ? '#ef4444' : '#71717a', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className={dropState === 'uploading' ? 'spin-anim' : undefined}>
+            <div className={cn('w-[52px] h-[52px] rounded-[14px] flex items-center justify-center',
+              dropState === 'over' || dropState === 'done' ? 'bg-[var(--green)] text-white' :
+              dropState === 'error' ? 'bg-red-100 dark:bg-red-950/40 text-destructive' :
+              'bg-muted text-muted-foreground',
+              dropState === 'uploading' && 'spin-anim'
+            )}>
               {dropState === 'done'
                 ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 : dropState === 'error'
@@ -489,36 +424,35 @@ export default function RubricBuilder({
                 ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4L7.5 8.5M12 4l4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
                 : null}
             </div>
-            <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 15, marginTop: 14, color: dropState === 'error' ? '#ef4444' : '#18181b' }}>{dropTitle}</div>
-            <div style={{ fontSize: 11, color: dropState === 'error' ? '#ef4444' : '#a1a1aa', marginTop: 5, lineHeight: 1.5 }}>{dropSub}</div>
+            <div className={cn('font-semibold text-[15px] mt-3.5', dropState === 'error' ? 'text-destructive' : 'text-foreground')} style={{ fontFamily: 'var(--font-space)' }}>{dropTitle}</div>
+            <div className={cn('text-[11px] mt-1 leading-snug', dropState === 'error' ? 'text-destructive' : 'text-muted-foreground')}>{dropSub}</div>
             {['idle', 'error'].includes(dropState) && (
-              <div style={{ display: 'flex', gap: 5, marginTop: 14 }}>
+              <div className="flex gap-1.5 mt-3.5">
                 {['PDF', 'DOCX', 'DOC', 'TXT'].map((f) => (
-                  <span key={f} style={{ fontSize: 10, color: '#71717a', background: '#fff', border: '1px solid #e4e4e7', padding: '2px 7px', borderRadius: 5 }}>{f}</span>
+                  <span key={f} className="text-[10px] text-muted-foreground bg-card border border-border px-1.5 py-0.5 rounded-[5px]">{f}</span>
                 ))}
               </div>
             )}
           </div>
 
           {/* Stats */}
-          <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 18, padding: 22 }}>
-            <div style={{ fontSize: 11, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 16 }}>INGESTION QUEUE</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="bg-card border border-border rounded-[18px] p-5.5">
+            <div className="text-[11px] tracking-[.16em] text-muted-foreground mb-4">INGESTION QUEUE</div>
+            <div className="flex flex-col gap-3.5">
               {[
                 { label: 'Applicants Evaluated', value: stats.scored, highlight: false },
                 { label: 'In pipeline',           value: stats.processing, highlight: stats.processing > 0 },
                 { label: 'Total uploaded',         value: stats.total, highlight: false },
               ].map(({ label, value, highlight }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, color: '#27272a' }}>{label}</span>
-                  <span style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 18, color: highlight ? '#059669' : '#18181b' }}>{value}</span>
+                <div key={label} className="flex items-center justify-between">
+                  <span className="text-[13px] text-foreground">{label}</span>
+                  <span className={cn('font-semibold text-[18px]', highlight ? 'text-[var(--green)]' : 'text-foreground')} style={{ fontFamily: 'var(--font-space)' }}>{value}</span>
                 </div>
               ))}
             </div>
-            <button onClick={() => router.push(`/jobs/${jobId}/candidates`)}
-              style={{ width: '100%', marginTop: 20, background: '#18181b', color: '#fff', border: 'none', padding: 12, borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              View scored candidates <span style={{ fontSize: 14 }}>→</span>
-            </button>
+            <Button onClick={() => router.push(`/jobs/${jobId}/candidates`)} className="w-full mt-5 font-mono text-[12.5px] gap-2">
+              View scored candidates <span className="text-[14px]">→</span>
+            </Button>
           </div>
         </div>
       </div>

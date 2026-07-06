@@ -3,6 +3,9 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createJobRoleAction } from '@/lib/actions/create-job-role';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 type Job = {
   id: string;
@@ -44,7 +47,6 @@ function parseJD(text: string) {
     const first = text.split('\n').map((s) => s.trim()).filter(Boolean)[0] ?? '';
     title = first.replace(/[^\x20-\x7E]+/g, '').replace(/Hiring Now\s*\|?/i, '').trim();
   }
-  // Extract body text after "About the Role" as description
   const descMatch = text.match(/About the Role\s*\n([\s\S]+)/i);
   const description = descMatch ? descMatch[1].trim() : '';
   return {
@@ -74,21 +76,16 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
     if (!canCreate || isLoading) return;
     setError(null);
 
-    // ── AI mode: single Gemini call → redirect to rubric page ──
     if (mode === 'ai') {
       startAiTransition(async () => {
         const result = await createJobRoleAction(parseText);
-        if (!result.ok) {
-          setError(result.error);
-          return;
-        }
+        if (!result.ok) { setError(result.error); return; }
         onClose();
         router.push(`/jobs/${result.jobId}/rubric`);
       });
       return;
     }
 
-    // ── Manual mode: plain POST → call onCreate ──
     if (!form.title.trim()) return;
     const payload = {
       title: form.title.trim(),
@@ -106,9 +103,7 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      const data = await res.json() as { job?: Job; error?: string; issues?: unknown };
-
+      const data = await res.json() as { job?: Job; error?: string };
       if (!res.ok) {
         if (res.status === 409 || (data.error as string)?.toLowerCase().includes('duplicate') || (data.error as string)?.toLowerCase().includes('unique')) {
           setError(`Job code ${payload.code} already exists — please use a different code.`);
@@ -117,10 +112,7 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
         }
         return;
       }
-
-      if (data.job) {
-        onCreate(data.job);
-      }
+      if (data.job) onCreate(data.job);
     } catch {
       setError('Network error — please try again.');
     } finally {
@@ -128,138 +120,136 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
     }
   };
 
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    flex: 1,
-    border: 'none',
-    borderRadius: 8,
-    padding: '9px 10px',
-    fontFamily: 'var(--font-mono)',
-    fontSize: 12,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    background: active ? '#fff' : 'transparent',
-    color: active ? '#18181b' : '#a1a1aa',
-    boxShadow: active ? '0 1px 2px rgba(24,24,27,.06)' : 'none',
-    transition: 'all .2s',
-  });
-
   return (
-    <>
-      {/* Backdrop — centres the modal and never scrolls */}
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-black/40 backdrop-blur-[2px]"
+    >
       <div
-        onClick={onClose}
-        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', padding: '24px' }}
+        onClick={(e) => e.stopPropagation()}
+        className="animate-rise relative flex flex-col w-full max-w-[560px] max-h-[90vh] bg-card border border-border rounded-[18px] overflow-hidden"
+        style={{ boxShadow: '0 20px 40px rgba(0,0,0,.18)' }}
       >
-        {/* Modal container — stops click propagation so inner clicks don't close */}
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{ position: 'relative', display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 560, maxHeight: '90vh', backgroundColor: '#fff', border: '1px solid #e4e4e7', borderRadius: 18, boxShadow: '0 20px 40px rgba(0,0,0,.18)', overflow: 'hidden' }}
-          className="animate-rise"
-        >
-          {/* Header — fixed, never scrolls */}
-          <div style={{ flexShrink: 0, padding: '22px 26px', borderBottom: '1px solid #f1f1f2', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: 11, letterSpacing: '.2em', color: '#a1a1aa', marginBottom: 7 }}>COREMATCH / NEW ROLE</div>
-              <div style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 19, color: '#18181b' }}>Create Job Role</div>
-            </div>
-            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid #e4e4e7', background: '#fff', color: '#71717a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>✕</button>
+        {/* Header */}
+        <div className="shrink-0 px-6 py-5 border-b border-border flex items-start justify-between">
+          <div>
+            <div className="text-[11px] tracking-[.2em] text-muted-foreground mb-1.5">COREMATCH / NEW ROLE</div>
+            <div className="font-semibold text-[19px] text-foreground" style={{ fontFamily: 'var(--font-space)' }}>Create Job Role</div>
           </div>
+          <Button variant="outline" size="icon" onClick={onClose} className="h-8 w-8 rounded-[10px] font-mono text-[15px]">✕</Button>
+        </div>
 
-          {/* Mode toggle */}
-          <div style={{ padding: '16px 26px 0' }}>
-            <div style={{ display: 'flex', gap: 4, background: '#f4f4f5', border: '1px solid #ececed', borderRadius: 11, padding: 3 }}>
-              <button onClick={() => setMode('ai')} style={tabStyle(mode === 'ai')}>
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.6 3.9 4.2.3-3.2 2.7 1 4.1L8 10.9 4.4 12.6l1-4.1L2.2 5.7l4.2-.3z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
-                AI Auto-Parse
-              </button>
-              <button onClick={() => setMode('manual')} style={tabStyle(mode === 'manual')}>Manual Entry</button>
-            </div>
-          </div>
-
-          {/* Body — scrollable */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 26px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {mode === 'ai' ? (
-              <div>
-                <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 8 }}>PASTE JOB DESCRIPTION OR REQUIREMENT TEXT</div>
-                <textarea
-                  value={parseText}
-                  onChange={(e) => setParseText(e.target.value)}
-                  placeholder="Paste a job post, email or requirement spec…"
-                  style={{ width: '100%', minHeight: 180, border: '1px solid #e4e4e7', borderRadius: 12, padding: '14px 15px', fontFamily: 'var(--font-mono)', fontSize: 12.5, lineHeight: 1.62, color: '#27272a', background: '#fafafa', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-                />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, fontSize: 11, color: '#71717a' }}>
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.6 3.9 4.2.3-3.2 2.7 1 4.1L8 10.9 4.4 12.6l1-4.1L2.2 5.7l4.2-.3z" stroke="#059669" strokeWidth="1.2" strokeLinejoin="round"/></svg>
-                  AI extracts metadata + builds rubric in one step. You'll land on the rubric page to review.
-                </div>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 8 }}>ROLE TITLE</div>
-                  <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Staff Backend Engineer" style={{ width: '100%', border: '1px solid #e4e4e7', borderRadius: 10, padding: '11px 13px', fontFamily: 'var(--font-mono)', fontSize: 13, color: '#18181b', background: '#fff', outline: 'none' }} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fafafa', border: '1px dashed #e4e4e7', borderRadius: 10, padding: '11px 13px' }}>
-                  <span style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa' }}>JOB CODE</span>
-                  <span style={{ fontFamily: 'var(--font-space)', fontWeight: 600, fontSize: 14, color: '#18181b' }}>{nextCode}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 10, color: '#a1a1aa', letterSpacing: '.04em' }}>auto-assigned</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 8 }}>LOCATION</div>
-                    <input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} placeholder="e.g. Kochi, IN" style={{ width: '100%', border: '1px solid #e4e4e7', borderRadius: 10, padding: '11px 13px', fontFamily: 'var(--font-mono)', fontSize: 13, color: '#18181b', background: '#fff', outline: 'none' }} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 8 }}>EXPERIENCE</div>
-                    <input value={form.experience} onChange={(e) => setForm((f) => ({ ...f, experience: e.target.value }))} placeholder="e.g. 5–6 Yrs Exp" style={{ width: '100%', border: '1px solid #e4e4e7', borderRadius: 10, padding: '11px 13px', fontFamily: 'var(--font-mono)', fontSize: 13, color: '#18181b', background: '#fff', outline: 'none' }} />
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 8 }}>WORK MODE</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {WORK_MODES.map((m) => (
-                      <div
-                        key={m}
-                        onClick={() => setForm((f) => ({ ...f, workMode: m }))}
-                        style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 9, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', border: `1px solid ${form.workMode === m ? '#a7f3d0' : '#e4e4e7'}`, background: form.workMode === m ? '#ecfdf5' : '#fff', color: form.workMode === m ? '#059669' : '#71717a', transition: 'all .2s' }}
-                      >{m}</div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Inline error */}
-            {error && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 13px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 9, fontSize: 12, color: '#dc2626' }}>
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.6"/><path d="M10 6v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="10" cy="13.5" r="1" fill="currentColor"/></svg>
-                {error}
-              </div>
-            )}
-          </div>
-
-          {/* Footer — fixed, never scrolls */}
-          <div style={{ flexShrink: 0, padding: '18px 26px', borderTop: '1px solid #f1f1f2', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, color: '#a1a1aa', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }} />
-              Created as Active
-            </span>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={onClose} style={{ background: '#fff', color: '#71717a', border: '1px solid #e4e4e7', padding: '11px 16px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer' }}>Cancel</button>
+        {/* Mode toggle */}
+        <div className="px-6 pt-4">
+          <div className="flex gap-1 bg-muted border border-border rounded-[11px] p-0.5">
+            {(['ai', 'manual'] as const).map((m) => (
               <button
-                onClick={handleSubmit}
-                disabled={!canCreate || isLoading}
-                style={{ border: 'none', padding: '11px 18px', borderRadius: 11, fontFamily: 'var(--font-mono)', fontSize: 12.5, transition: 'all .2s', background: canCreate && !isLoading ? '#18181b' : '#e4e4e7', color: canCreate && !isLoading ? '#fff' : '#a1a1aa', cursor: canCreate && !isLoading ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 7 }}
+                key={m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-1.5 rounded-[8px] py-2 text-[12px] font-mono cursor-pointer border-none transition-all',
+                  mode === m ? 'bg-card text-foreground shadow-sm' : 'bg-transparent text-muted-foreground'
+                )}
               >
-                {isLoading && <span className="spin-anim" style={{ width: 11, height: 11, border: '2px solid #52525b', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }} />}
-                {aiPending ? 'AI generating…' : submitting ? 'Creating…' : mode === 'ai' ? 'Parse & create role' : 'Create job role'}
+                {m === 'ai' && (
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.6 3.9 4.2.3-3.2 2.7 1 4.1L8 10.9 4.4 12.6l1-4.1L2.2 5.7l4.2-.3z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+                )}
+                {m === 'ai' ? 'AI Auto-Parse' : 'Manual Entry'}
               </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+          {mode === 'ai' ? (
+            <div>
+              <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">PASTE JOB DESCRIPTION OR REQUIREMENT TEXT</div>
+              <textarea
+                value={parseText}
+                onChange={(e) => setParseText(e.target.value)}
+                placeholder="Paste a job post, email or requirement spec…"
+                className="w-full min-h-[180px] border border-border rounded-xl p-3.5 text-[12.5px] leading-relaxed text-foreground bg-muted/40 outline-none resize-y box-border focus:border-muted-foreground/40 transition-colors"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              />
+              <div className="flex items-center gap-1.5 mt-2.5 text-[11px] text-muted-foreground">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.6 3.9 4.2.3-3.2 2.7 1 4.1L8 10.9 4.4 12.6l1-4.1L2.2 5.7l4.2-.3z" stroke="var(--green)" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+                AI extracts metadata + builds rubric in one step. You'll land on the rubric page to review.
+              </div>
             </div>
+          ) : (
+            <>
+              <div>
+                <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">ROLE TITLE</div>
+                <Input
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Staff Backend Engineer"
+                  className="font-mono text-[13px]"
+                />
+              </div>
+              <div className="flex items-center gap-2.5 bg-muted/40 border border-dashed border-border rounded-[10px] px-3 py-2.5">
+                <span className="text-[10px] tracking-[.14em] text-muted-foreground">JOB CODE</span>
+                <span className="font-semibold text-[14px] text-foreground" style={{ fontFamily: 'var(--font-space)' }}>{nextCode}</span>
+                <span className="ml-auto text-[10px] text-muted-foreground">auto-assigned</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">LOCATION</div>
+                  <Input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} placeholder="e.g. Kochi, IN" className="font-mono text-[13px]" />
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">EXPERIENCE</div>
+                  <Input value={form.experience} onChange={(e) => setForm((f) => ({ ...f, experience: e.target.value }))} placeholder="e.g. 5–6 Yrs Exp" className="font-mono text-[13px]" />
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">WORK MODE</div>
+                <div className="flex gap-2">
+                  {WORK_MODES.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setForm((f) => ({ ...f, workMode: m }))}
+                      className={cn(
+                        'flex-1 text-center py-2 rounded-[9px] font-mono text-[12px] cursor-pointer border transition-all',
+                        form.workMode === m
+                          ? 'border-green-300 bg-green-50 dark:bg-green-950/30 text-[var(--green)] dark:border-green-800'
+                          : 'border-border bg-card text-muted-foreground hover:border-muted-foreground/40'
+                      )}
+                    >{m}</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {error && (
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/30 rounded-[9px] text-[12px] text-destructive">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.6"/><path d="M10 6v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="10" cy="13.5" r="1" fill="currentColor"/></svg>
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 px-6 py-4 border-t border-border bg-muted/40 flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />
+            Created as Active
+          </span>
+          <div className="flex gap-2.5">
+            <Button variant="outline" onClick={onClose} className="font-mono text-[12.5px]">Cancel</Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!canCreate || isLoading}
+              className="font-mono text-[12.5px] gap-1.5"
+            >
+              {isLoading && <span className="spin-anim w-[11px] h-[11px] border-2 border-background/30 border-t-background rounded-full inline-block" />}
+              {aiPending ? 'AI generating…' : submitting ? 'Creating…' : mode === 'ai' ? 'Parse & create role' : 'Create job role'}
+            </Button>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

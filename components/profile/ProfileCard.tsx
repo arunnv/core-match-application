@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type UserProfile = {
   id: string;
@@ -15,12 +18,12 @@ type UserProfile = {
   tenantName: string | null;
 };
 
-const ROLE_STYLE: Record<string, { color: string; bg: string; bd: string }> = {
-  SuperAdmin:      { color: '#7c3aed', bg: '#f5f3ff', bd: '#ddd6fe' },
-  TenantAdmin:     { color: '#0369a1', bg: '#eff6ff', bd: '#bfdbfe' },
-  RecruitmentLead: { color: '#059669', bg: '#ecfdf5', bd: '#a7f3d0' },
-  HiringManager:   { color: '#d97706', bg: '#fffbeb', bd: '#fde68a' },
-  Recruiter:       { color: '#52525b', bg: '#f4f4f5', bd: '#e4e4e7' },
+const ROLE_BADGE: Record<string, string> = {
+  SuperAdmin:      'text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800',
+  TenantAdmin:     'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800',
+  RecruitmentLead: 'text-[var(--green)] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800',
+  HiringManager:   'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800',
+  Recruiter:       'text-muted-foreground bg-muted border-border',
 };
 
 function fmt(iso: string) {
@@ -40,7 +43,7 @@ export default function ProfileCard({ user }: { user: UserProfile }) {
     ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : user.email.slice(0, 2).toUpperCase();
 
-  const roleStyle = ROLE_STYLE[user.role] ?? ROLE_STYLE.Recruiter;
+  const roleBadgeClass = ROLE_BADGE[user.role] ?? ROLE_BADGE.Recruiter;
   const [copied, setCopied] = useState(false);
 
   const copyId = () => {
@@ -52,40 +55,39 @@ export default function ProfileCard({ user }: { user: UserProfile }) {
   return (
     <div style={{ maxWidth: 720, padding: '80px 48px 90px 96px' }} className="animate-rise">
       {/* Header */}
-      <div style={{ fontSize: 11, letterSpacing: '.22em', color: '#a1a1aa', marginBottom: 14 }}>COREMATCH / PROFILE</div>
-      <h1 style={{ fontFamily: 'var(--font-space)', fontWeight: 300, fontSize: 44, lineHeight: 1, letterSpacing: '-.02em', margin: '0 0 36px' }}>
-        My <span style={{ fontWeight: 600 }}>Profile</span>
+      <div className="text-[11px] tracking-[.22em] text-muted-foreground mb-3.5">COREMATCH / PROFILE</div>
+      <h1 className="font-light text-[44px] leading-none tracking-[-0.02em] m-0 mb-9 text-foreground" style={{ fontFamily: 'var(--font-space)' }}>
+        My <span className="font-semibold">Profile</span>
       </h1>
 
       {/* Identity card */}
-      <div style={{ background: '#fff', border: '1px solid #e4e4e7', borderRadius: 20, padding: '28px 28px 24px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
-          {/* Avatar */}
+      <div className="bg-card border border-border rounded-[20px] p-7 mb-4">
+        <div className="flex items-center gap-5 mb-6">
           {user.image ? (
-            <img src={user.image} alt={user.name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e4e4e7' }} />
+            <img src={user.image} alt={user.name} className="w-16 h-16 rounded-full object-cover border-2 border-border" />
           ) : (
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#18181b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 22, flexShrink: 0 }}>
+            <div className="w-16 h-16 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-[22px] shrink-0" style={{ fontFamily: 'var(--font-space)' }}>
               {initials}
             </div>
           )}
           <div>
-            <div style={{ fontFamily: 'var(--font-space)', fontWeight: 700, fontSize: 22, color: '#18181b', marginBottom: 4 }}>{user.name || '—'}</div>
-            <div style={{ fontSize: 13, color: '#71717a', marginBottom: 8 }}>{user.email}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 9.5, letterSpacing: '.14em', color: roleStyle.color, background: roleStyle.bg, border: `1px solid ${roleStyle.bd}`, padding: '3px 9px', borderRadius: 6 }}>
+            <div className="font-bold text-[22px] text-foreground mb-1" style={{ fontFamily: 'var(--font-space)' }}>{user.name || '—'}</div>
+            <div className="text-[13px] text-muted-foreground mb-2">{user.email}</div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={cn('text-[9.5px] tracking-[.14em]', roleBadgeClass)}>
                 {user.role.replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
-              </span>
+              </Badge>
               {!user.enabled && (
-                <span style={{ fontSize: 9.5, letterSpacing: '.14em', color: '#ef4444', background: '#fef2f2', border: '1px solid #fecaca', padding: '3px 9px', borderRadius: 6 }}>
+                <Badge variant="outline" className="text-[9.5px] tracking-[.14em] text-destructive bg-destructive/10 border-destructive/30">
                   DISABLED
-                </span>
+                </Badge>
               )}
             </div>
           </div>
         </div>
 
         {/* Details grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="grid grid-cols-2 gap-3.5">
           <InfoRow label="Organisation" value={user.tenantName ?? '—'} />
           <InfoRow label="Member since" value={fmt(user.createdAt)} />
           <InfoRow label="Last login" value={user.lastLoginAt ? fmtTime(user.lastLoginAt) : 'Never'} />
@@ -94,17 +96,19 @@ export default function ProfileCard({ user }: { user: UserProfile }) {
       </div>
 
       {/* Account ID */}
-      <div style={{ background: '#fafafa', border: '1px solid #e4e4e7', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="bg-muted/40 border border-border rounded-[14px] px-4 py-3.5 flex items-center justify-between">
         <div>
-          <div style={{ fontSize: 9.5, letterSpacing: '.16em', color: '#a1a1aa', marginBottom: 4 }}>ACCOUNT ID</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#52525b' }}>{user.id}</div>
+          <div className="text-[9.5px] tracking-[.16em] text-muted-foreground mb-1">ACCOUNT ID</div>
+          <div className="font-mono text-[12px] text-muted-foreground">{user.id}</div>
         </div>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={copyId}
-          style={{ padding: '6px 13px', borderRadius: 8, border: '1px solid #e4e4e7', background: copied ? '#ecfdf5' : '#fff', color: copied ? '#059669' : '#71717a', fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer', transition: 'all .2s', whiteSpace: 'nowrap' }}
+          className={cn('font-mono text-[11px] whitespace-nowrap transition-all', copied && 'text-[var(--green)] border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950/30')}
         >
           {copied ? '✓ Copied' : 'Copy'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -112,9 +116,9 @@ export default function ProfileCard({ user }: { user: UserProfile }) {
 
 function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div style={{ background: '#fafafa', border: '1px solid #f1f1f2', borderRadius: 10, padding: '12px 14px' }}>
-      <div style={{ fontSize: 9.5, letterSpacing: '.14em', color: '#a1a1aa', marginBottom: 5 }}>{label.toUpperCase()}</div>
-      <div style={{ fontSize: 13, color: '#18181b', fontFamily: mono ? 'var(--font-mono)' : undefined }}>{value}</div>
+    <div className="bg-muted/40 border border-border/50 rounded-[10px] px-3.5 py-3">
+      <div className="text-[9.5px] tracking-[.14em] text-muted-foreground mb-1">{label.toUpperCase()}</div>
+      <div className={cn('text-[13px] text-foreground', mono && 'font-mono')}>{value}</div>
     </div>
   );
 }
