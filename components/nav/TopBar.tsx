@@ -1,8 +1,13 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import UserMenu from './UserMenu';
+import { ThemeToggle } from './ThemeToggle';
+import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 function PageTitle() {
   const pathname = usePathname();
@@ -26,17 +31,19 @@ function PageTitle() {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className="flex items-center gap-1.5">
       {segments.map((seg, i) => (
-        <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {i > 0 && <span style={{ color: '#d4d4d8', fontSize: 13 }}>/</span>}
-          <span style={{
-            fontFamily: 'var(--font-space)',
-            fontWeight: i === segments.length - 1 ? 600 : 400,
-            fontSize: 14,
-            color: i === segments.length - 1 ? '#18181b' : '#a1a1aa',
-            letterSpacing: '-.01em',
-          }}>
+        <span key={i} className="flex items-center gap-1.5">
+          {i > 0 && <span className="text-muted-foreground/40 text-sm">/</span>}
+          <span
+            className={cn(
+              'text-[14px] tracking-[-0.01em]',
+              i === segments.length - 1
+                ? 'font-semibold text-foreground'
+                : 'font-normal text-muted-foreground'
+            )}
+            style={{ fontFamily: 'var(--font-space)' }}
+          >
             {seg.label}
           </span>
         </span>
@@ -49,21 +56,14 @@ type AiStatus = 'checking' | 'ok' | 'error';
 
 function AiStatusBadge() {
   const [status, setStatus] = useState<AiStatus>('checking');
-  const [errorMsg, setErrorMsg] = useState<string>('');
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const check = async () => {
     try {
       const res = await fetch('/api/ai-status');
       const data = await res.json();
-      if (data.ok) {
-        setStatus('ok');
-        setErrorMsg('');
-      } else {
-        setStatus('error');
-        setErrorMsg(data.error ?? 'Unknown error');
-      }
+      if (data.ok) { setStatus('ok'); setErrorMsg(''); }
+      else { setStatus('error'); setErrorMsg(data.error ?? 'Unknown error'); }
     } catch {
       setStatus('error');
       setErrorMsg('Could not reach the server.');
@@ -72,117 +72,67 @@ function AiStatusBadge() {
 
   useEffect(() => {
     check();
-    const interval = setInterval(check, 60_000); // re-check every 60s
-    return () => clearInterval(interval);
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setPopoverOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const dot = {
-    checking: { bg: '#a1a1aa', shadow: '0 0 0 2.5px #f4f4f5' },
-    ok:       { bg: '#10b981', shadow: '0 0 0 2.5px #d1fae5' },
-    error:    { bg: '#ef4444', shadow: '0 0 0 2.5px #fee2e2' },
+  const dotClass = {
+    checking: 'bg-muted-foreground pulse-dot',
+    ok: 'bg-[var(--green)]',
+    error: 'bg-destructive',
   }[status];
 
-  const label = {
-    checking: 'AI Engine',
-    ok:       'AI Engine',
-    error:    'AI Engine',
+  const dotRing = {
+    checking: '',
+    ok: 'shadow-[0_0_0_2.5px_var(--green-bg)]',
+    error: 'shadow-[0_0_0_2.5px_hsl(var(--destructive)/0.15)]',
   }[status];
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        onClick={() => { if (status !== 'checking') setPopoverOpen(o => !o); }}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          fontSize: 11.5, color: status === 'error' ? '#ef4444' : '#71717a',
-          fontFamily: 'var(--font-mono)',
-          background: 'none', border: 'none',
-          cursor: status === 'checking' ? 'default' : 'pointer',
-          padding: '4px 8px',
-          borderRadius: 8,
-          transition: 'background .15s',
-        }}
-        onMouseEnter={e => { if (status !== 'checking') (e.currentTarget as HTMLElement).style.background = '#f4f4f5'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none'; }}
+    <Popover>
+      <PopoverTrigger
+        disabled={status === 'checking'}
+        className={cn(
+          'inline-flex h-8 items-center gap-1.5 rounded-lg px-2 font-mono text-[11.5px] border-none bg-transparent cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          status === 'error'
+            ? 'text-destructive hover:bg-destructive/10'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+          status === 'checking' && 'pointer-events-none'
+        )}
       >
-        <span style={{
-          width: 6, height: 6, borderRadius: '50%',
-          background: dot.bg,
-          boxShadow: dot.shadow,
-          flexShrink: 0,
-          ...(status === 'checking' ? { animation: 'pulse 1.4s ease-in-out infinite' } : {}),
-        }} />
-        {label}
-      </button>
-
-      {popoverOpen && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-          minWidth: 260, maxWidth: 340,
-          background: '#fff',
-          border: `1px solid ${status === 'error' ? '#fecaca' : '#e4e4e7'}`,
-          borderRadius: 12,
-          boxShadow: '0 8px 24px -4px rgba(24,24,27,.16)',
-          padding: '14px 16px',
-          zIndex: 200,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: status === 'error' ? 10 : 0 }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%',
-              background: dot.bg, boxShadow: dot.shadow, flexShrink: 0,
-            }} />
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '.12em',
-              color: status === 'error' ? '#b91c1c' : '#059669',
-              fontWeight: 600,
-            }}>
-              {status === 'ok' ? 'GEMINI API CONNECTED' : 'GEMINI API ERROR'}
-            </span>
-          </div>
-
-          {status === 'error' && (
-            <>
-              <div style={{
-                padding: '10px 12px',
-                background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
-                fontSize: 12, color: '#b91c1c', lineHeight: 1.55,
-                fontFamily: 'var(--font-mono)',
-              }}>
-                {errorMsg}
-              </div>
-              <button
-                onClick={() => { setStatus('checking'); check().then(() => {}); }}
-                style={{
-                  marginTop: 10, width: '100%',
-                  padding: '8px', borderRadius: 8,
-                  border: '1px solid #e4e4e7', background: '#f8f8f9',
-                  fontSize: 12, color: '#52525b', cursor: 'pointer',
-                  fontFamily: 'var(--font-mono)',
-                }}
-              >
-                Retry connection
-              </button>
-            </>
-          )}
-
-          {status === 'ok' && (
-            <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
-              Gemini 2.5 Pro · Ready
-            </div>
-          )}
+        <span className={cn('h-1.5 w-1.5 rounded-full flex-shrink-0', dotClass, dotRing)} />
+        AI Engine
+      </PopoverTrigger>
+      <PopoverContent align="end" side="bottom" className="w-72 p-4 font-mono">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={cn('h-2 w-2 rounded-full flex-shrink-0', dotClass, dotRing)} />
+          <span className={cn(
+            'text-[11px] font-semibold tracking-widest uppercase',
+            status === 'ok' ? 'text-[var(--green-dark)]' : 'text-destructive'
+          )}>
+            {status === 'ok' ? 'Gemini API Connected' : 'Gemini API Error'}
+          </span>
         </div>
-      )}
-
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }`}</style>
-    </div>
+        {status === 'ok' && (
+          <p className="text-[11px] text-muted-foreground mt-1">Gemini 2.5 Pro · Ready</p>
+        )}
+        {status === 'error' && (
+          <>
+            <div className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-[12px] text-destructive leading-relaxed">
+              {errorMsg}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full text-[12px] font-mono"
+              onClick={() => { setStatus('checking'); check(); }}
+            >
+              Retry connection
+            </Button>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -198,22 +148,21 @@ export default function TopBar({
   onSignOut: () => Promise<void>;
 }) {
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0,
-      height: 52,
-      zIndex: 40,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 24px 0 88px',
-      background: 'rgba(255,255,255,.88)',
-      backdropFilter: 'blur(12px)',
-      borderBottom: '1px solid #ececed',
-    }}>
+    <header
+      className="fixed top-0 left-0 right-0 z-40 flex h-[52px] items-center justify-between border-b"
+      style={{
+        padding: '0 24px 0 88px',
+        background: 'var(--topbar-bg)',
+        borderColor: 'var(--topbar-border)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
+    >
       <PageTitle />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="flex items-center gap-1">
         <AiStatusBadge />
+        <Separator orientation="vertical" className="h-5 mx-1" />
+        <ThemeToggle />
         <UserMenu
           userName={userName}
           initials={initials}
@@ -221,6 +170,6 @@ export default function TopBar({
           onSignOut={onSignOut}
         />
       </div>
-    </div>
+    </header>
   );
 }

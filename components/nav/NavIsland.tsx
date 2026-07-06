@@ -2,50 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
-type Props = {
-  isAdmin: boolean;
-  initials: string;
-};
-
-function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ position: 'relative', display: 'flex' }}>
-      {children}
-      <span style={{
-        pointerEvents: 'none',
-        position: 'absolute',
-        left: 'calc(100% + 12px)',
-        top: '50%',
-        transform: 'translateY(-50%) scale(.92)',
-        transformOrigin: 'left center',
-        whiteSpace: 'nowrap',
-        background: '#18181b',
-        color: '#fff',
-        fontFamily: 'var(--font-mono)',
-        fontSize: 11,
-        padding: '5px 10px',
-        borderRadius: 8,
-        opacity: 0,
-        transition: 'opacity .15s, transform .15s',
-        zIndex: 100,
-      }}
-        className="nav-tooltip"
-      >
-        {label}
-        <span style={{
-          position: 'absolute',
-          right: '100%',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          border: '5px solid transparent',
-          borderRightColor: '#18181b',
-        }} />
-      </span>
-      <style>{`.nav-tip-wrap:hover .nav-tooltip, div:hover > .nav-tooltip { opacity: 1; transform: translateY(-50%) scale(1); }`}</style>
-    </div>
-  );
-}
+type Props = { isAdmin: boolean; initials: string };
 
 const NAV_ITEMS = [
   {
@@ -85,9 +45,30 @@ const ADMIN_ITEM = {
   ),
 };
 
-const Divider = () => (
-  <div style={{ width: 22, height: 1, background: '#e4e4e7', margin: '2px 0' }} />
-);
+function NavBtn({ href, label, active, children }: { href: string; label: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Link
+            href={href}
+            className={cn(
+              'flex h-[42px] w-[42px] items-center justify-center rounded-[14px] transition-all duration-200',
+              active
+                ? 'bg-foreground text-background shadow-sm'
+                : 'bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground'
+            )}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent side="right" className="font-mono text-xs">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export default function NavIsland({ isAdmin, initials }: Props) {
   const pathname = usePathname();
@@ -97,92 +78,70 @@ export default function NavIsland({ isAdmin, initials }: Props) {
     return pathname.startsWith(href);
   };
 
-  const navBtn = (active: boolean) => ({
-    width: 42,
-    height: 42,
-    border: 'none',
-    borderRadius: 14,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: active ? '#18181b' : 'transparent',
-    color: active ? '#fff' : '#a1a1aa',
-    transition: 'all .2s',
-    textDecoration: 'none',
-  } as React.CSSProperties);
-
   return (
-    <div style={{
-      position: 'fixed',
-      left: 16,
-      top: '50%',
-      transform: 'translateY(-50%)',
-      zIndex: 50,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 4,
-      padding: '10px 8px',
-      background: '#ffffff',
-      border: '1px solid #e4e4e7',
-      borderRadius: 20,
-      boxShadow: '0 12px 32px -12px rgba(24,24,27,.2), 0 2px 6px -2px rgba(24,24,27,.06)',
-    }}>
+    <TooltipProvider delay={200}>
+      <nav
+        className="fixed left-4 top-1/2 z-50 -translate-y-1/2 flex flex-col items-center gap-1 rounded-[20px] border px-2 py-[10px]"
+        style={{
+          background: 'var(--nav-bg)',
+          borderColor: 'var(--nav-border)',
+          boxShadow: 'var(--nav-shadow)',
+          backdropFilter: 'blur(14px)',
+          WebkitBackdropFilter: 'blur(14px)',
+        }}
+      >
+        {/* Logo */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                href="/jobs"
+                className="flex h-[38px] w-[38px] items-center justify-center rounded-[13px] bg-foreground text-background flex-shrink-0"
+              />
+            }
+          >
+            <div className="h-[13px] w-[13px] rotate-45 rounded-sm bg-[var(--green)]" />
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-mono text-xs">CoreMatch</TooltipContent>
+        </Tooltip>
 
-      {/* Logo mark */}
-      <Tooltip label="CoreMatch">
-        <Link href="/jobs" style={{
-          width: 38, height: 38, borderRadius: 13,
-          background: '#18181b',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          textDecoration: 'none', flexShrink: 0,
-        }}>
-          <div style={{ width: 13, height: 13, background: '#10b981', transform: 'rotate(45deg)', borderRadius: 2 }} />
-        </Link>
-      </Tooltip>
+        <div className="my-0.5 h-px w-[22px] bg-border" />
 
-      <Divider />
-
-      {/* Primary nav */}
-      {NAV_ITEMS.map((item) => (
-        <Tooltip key={item.href} label={item.label}>
-          <Link href={item.href} style={navBtn(isActive(item.href))}>
+        {NAV_ITEMS.map((item) => (
+          <NavBtn key={item.href} href={item.href} label={item.label} active={isActive(item.href)}>
             {item.icon}
-          </Link>
-        </Tooltip>
-      ))}
+          </NavBtn>
+        ))}
 
-      <Divider />
+        <div className="my-0.5 h-px w-[22px] bg-border" />
 
-      {/* Admin — only for admins, at the bottom before profile */}
-      {isAdmin && (
-        <Tooltip label={ADMIN_ITEM.label}>
-          <Link href={ADMIN_ITEM.href} style={navBtn(isActive(ADMIN_ITEM.href))}>
+        {isAdmin && (
+          <NavBtn href={ADMIN_ITEM.href} label={ADMIN_ITEM.label} active={isActive(ADMIN_ITEM.href)}>
             {ADMIN_ITEM.icon}
-          </Link>
+          </NavBtn>
+        )}
+
+        {/* Profile avatar */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                href="/profile"
+                className={cn(
+                  'flex h-[38px] w-[38px] items-center justify-center rounded-full text-[12px] font-bold transition-all duration-200',
+                  isActive('/profile')
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-foreground hover:bg-accent'
+                )}
+                style={{ fontFamily: 'var(--font-space)' }}
+              />
+            }
+          >
+            {initials}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-mono text-xs">My Profile</TooltipContent>
         </Tooltip>
-      )}
-
-      {/* Profile — replaces the dead settings button */}
-      <Tooltip label="My Profile">
-        <Link href="/profile" style={{
-          ...navBtn(isActive('/profile')),
-          ...(isActive('/profile') ? {} : {
-            background: '#f4f4f5',
-            color: '#18181b',
-          }),
-          width: 38,
-          height: 38,
-          borderRadius: '50%',
-          fontFamily: 'var(--font-space)',
-          fontWeight: 700,
-          fontSize: 12,
-        }}>
-          {initials}
-        </Link>
-      </Tooltip>
-
-    </div>
+      </nav>
+    </TooltipProvider>
   );
 }
