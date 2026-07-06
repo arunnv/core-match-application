@@ -175,7 +175,7 @@ function AiStatusBadge() {
 
           {status === 'ok' && (
             <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
-              Gemini 1.5 Flash · Ready
+              Gemini 2.5 Pro · Ready
             </div>
           )}
         </div>
