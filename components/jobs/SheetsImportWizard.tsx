@@ -263,7 +263,7 @@ export default function SheetsImportWizard({
                         size="sm"
                         variant="outline"
                         className="gap-2 text-[12px] border-blue-300 dark:border-blue-700 bg-white dark:bg-blue-950/50 text-blue-800 dark:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/40"
-                        onClick={() => signIn('google', { callbackUrl: window.location.href })}
+                        onClick={() => signIn('google', { callbackUrl: window.location.href }, { scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.readonly', access_type: 'offline', prompt: 'consent' })}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24">
                           <path fill="#4285F4" d="M23.06 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h6.2a5.3 5.3 0 0 1-2.3 3.48v2.89h3.72c2.18-2 3.44-4.96 3.44-8.38z"/>
