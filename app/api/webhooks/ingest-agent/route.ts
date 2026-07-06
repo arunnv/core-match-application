@@ -38,11 +38,16 @@ async function parseRequest(req: NextRequest): Promise<{
     try { form = await req.formData(); } catch {
       return { error: 'Invalid multipart data', status: 400 };
     }
-    const candidateName = (form.get('candidateName') as string | null)?.trim();
-    if (!candidateName) return { error: 'candidateName is required', status: 422 };
-
     const file = form.get('resume') as File | null;
     if (!file) return { error: 'resume file is required', status: 422 };
+
+    const senderRaw = (form.get('emailSender') as string | null)?.trim() ?? '';
+    const senderName = senderRaw.replace(/<[^>]+>/g, '').trim(); // strip <email@...> part
+    const fileBaseName = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
+    const candidateName = (form.get('candidateName') as string | null)?.trim()
+      || senderName
+      || fileBaseName
+      || 'Unknown Candidate';
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const fileName = file.name || 'resume.pdf';
