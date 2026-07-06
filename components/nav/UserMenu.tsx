@@ -3,6 +3,7 @@
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -30,10 +31,12 @@ export default function UserMenu({
         {initials}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52 font-mono text-xs">
-        <DropdownMenuLabel className="font-normal pb-2">
-          <p className="font-semibold text-foreground text-[13px]">{userName}</p>
-          <p className="text-muted-foreground text-[11px] truncate">{email}</p>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal pb-2">
+            <p className="font-semibold text-foreground text-[13px]">{userName}</p>
+            <p className="text-muted-foreground text-[11px] truncate">{email}</p>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-pointer gap-2 text-[13px]" onClick={() => window.location.href = '/profile'}>
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
