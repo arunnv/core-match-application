@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -111,7 +112,7 @@ export default function SheetsImportWizard({
       const res = await fetch(`/api/integrations/google/sheets/fetch?spreadsheetId=${encodeURIComponent(id)}&mode=sheets`);
       const data = await res.json();
       if (!res.ok) {
-        if (data.error === 'no_google_token') setError('Sign in with Google to access Google Sheets. Use the avatar menu → Sign out, then sign back in with Google.');
+        if (data.error === 'no_google_token') setError('no_google_token');
         else setError(data.error ?? 'Failed to access spreadsheet.');
         return;
       }
@@ -246,7 +247,38 @@ export default function SheetsImportWizard({
                 </div>
               )}
 
-              {error && <div className="px-3 py-2.5 bg-destructive/10 border border-destructive/30 rounded-[9px] text-[12px] text-destructive leading-snug">{error}</div>}
+              {error && (
+                error === 'no_google_token' ? (
+                  <div className="px-4 py-3.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-[9px] flex items-start gap-3">
+                    <svg width="16" height="16" viewBox="0 0 24 24" className="shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M12 8v4m0 4h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                    <div className="flex-1">
+                      <div className="text-[12.5px] font-medium text-blue-800 dark:text-blue-200 mb-1">Google account required</div>
+                      <div className="text-[11.5px] text-blue-700 dark:text-blue-300 leading-relaxed mb-3">
+                        You're signed in with email. To access Google Sheets, sign in with your Google account.
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2 text-[12px] border-blue-300 dark:border-blue-700 bg-white dark:bg-blue-950/50 text-blue-800 dark:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/40"
+                        onClick={() => signIn('google', { callbackUrl: window.location.href })}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24">
+                          <path fill="#4285F4" d="M23.06 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h6.2a5.3 5.3 0 0 1-2.3 3.48v2.89h3.72c2.18-2 3.44-4.96 3.44-8.38z"/>
+                          <path fill="#34A853" d="M12 24c3.1 0 5.7-1.03 7.6-2.78l-3.72-2.89c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.76v2.98A11.5 11.5 0 0 0 12 24z"/>
+                          <path fill="#FBBC05" d="M5.6 14.71A6.9 6.9 0 0 1 5.23 12c0-.94.16-1.86.37-2.71V6.31H1.76A11.5 11.5 0 0 0 .5 12c0 1.86.45 3.62 1.26 5.69l3.84-2.98z"/>
+                          <path fill="#EA4335" d="M12 4.77c1.68 0 3.2.58 4.39 1.72l3.29-3.29C17.7 1.18 15.1 0 12 0A11.5 11.5 0 0 0 1.76 6.31l3.84 2.98C6.5 6.78 9.02 4.77 12 4.77z"/>
+                        </svg>
+                        Sign in with Google
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-3 py-2.5 bg-destructive/10 border border-destructive/30 rounded-[9px] text-[12px] text-destructive leading-snug">{error}</div>
+                )
+              )}
             </div>
           )}
 
