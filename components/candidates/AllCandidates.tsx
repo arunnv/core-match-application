@@ -405,57 +405,58 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
         </Card>
 
         {/* FILTER RAIL */}
-        <div className="flex items-center gap-1.5 mb-4 flex-wrap">
-          <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3 h-9">
-            <svg width="13" height="13" viewBox="0 0 20 20" fill="none" className="text-muted-foreground flex-shrink-0"><circle cx="9" cy="9" r="6.2" stroke="currentColor" strokeWidth="1.7"/><path d="M13.6 13.6L17 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
-            <input onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="border-none bg-transparent outline-none font-mono text-[11.5px] text-foreground w-20 placeholder:text-muted-foreground" />
+        <div className="flex flex-col gap-2 mb-4">
+          {/* Row 1: search + status filters + sort + count */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3 h-8 shrink-0">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" className="text-muted-foreground flex-shrink-0"><circle cx="9" cy="9" r="6.2" stroke="currentColor" strokeWidth="1.7"/><path d="M13.6 13.6L17 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+              <input onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="border-none bg-transparent outline-none font-mono text-[11px] text-foreground w-24 placeholder:text-muted-foreground" />
+            </div>
+            <Separator orientation="vertical" className="h-5 shrink-0" />
+            <div className="flex items-center gap-1">
+              {[{ id: 'all', label: 'All' }, { id: 'high', label: 'High Match' }, { id: 'pipeline', label: 'In Pipeline' }, { id: 'starred', label: '★ Shortlisted' }].map((f) => (
+                <FilterChip key={f.id} id={f.id} label={f.label} />
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              {view === 'list' && (
+                <div className="flex gap-1">
+                  {[{ id: 'best', label: 'Best Match' }, { id: 'name', label: 'Name' }].map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setSort(s.id)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-lg border font-mono text-[11px] transition-all cursor-pointer',
+                        sort === s.id ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                      )}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <span className="text-[11px] text-muted-foreground whitespace-nowrap font-mono">{filtered.length} candidates</span>
+            </div>
           </div>
-          <Separator orientation="vertical" className="h-6" />
-          <div className="flex items-center gap-1 flex-wrap">
-            {[{ id: 'all', label: 'All' }, { id: 'high', label: 'High Match' }, { id: 'pipeline', label: 'In Pipeline' }, { id: 'starred', label: '★ Shortlisted' }].map((f) => (
-              <FilterChip key={f.id} id={f.id} label={f.label} />
-            ))}
-          </div>
+          {/* Row 2: role filter — horizontally scrollable */}
           {jobs.length > 0 && (
-            <>
-              <Separator orientation="vertical" className="h-6" />
-              <div className="flex items-center gap-1 flex-wrap">
-                {[{ id: 'all', label: 'All Roles' }, ...jobs.map((j) => ({ id: j.id, label: j.title.length > 18 ? j.title.slice(0, 18) + '…' : j.title }))].map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => setRoleFilter(r.id)}
-                    className={cn(
-                      'px-2.5 py-1.5 rounded-lg border font-mono text-[11px] transition-all cursor-pointer whitespace-nowrap',
-                      roleFilter === r.id
-                        ? 'bg-foreground text-background border-foreground'
-                        : 'bg-card text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground'
-                    )}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            </>
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-0.5">
+              {[{ id: 'all', label: 'All Roles' }, ...jobs.map((j) => ({ id: j.id, label: j.title }))].map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setRoleFilter(r.id)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-lg border font-mono text-[11px] transition-all cursor-pointer whitespace-nowrap shrink-0',
+                    roleFilter === r.id
+                      ? 'bg-foreground text-background border-foreground'
+                      : 'bg-card text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground'
+                  )}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
           )}
-          <div className="ml-auto flex items-center gap-1.5">
-            {view === 'list' && (
-              <div className="flex gap-1">
-                {[{ id: 'best', label: 'Best Match' }, { id: 'name', label: 'Name' }].map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSort(s.id)}
-                    className={cn(
-                      'px-2.5 py-1.5 rounded-lg border font-mono text-[11px] transition-all cursor-pointer',
-                      sort === s.id ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border hover:text-foreground'
-                    )}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <span className="text-[11px] text-muted-foreground whitespace-nowrap font-mono">{filtered.length} candidates</span>
-          </div>
         </div>
 
         {/* LIST VIEW */}
