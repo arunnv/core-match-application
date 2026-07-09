@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createJobRoleAction } from '@/lib/actions/create-job-role';
 import { Button } from '@/components/ui/button';
@@ -72,11 +72,27 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
     experience: '',
     contractDuration: '',
     description: '',
+    clientName: '',
     clientPackage: '',
     ourPackage: '',
     workMode: 'Remote' as typeof WORK_MODES[number],
     status: 'Active' as typeof STATUSES[number],
   });
+  const [clientOptions, setClientOptions] = useState<string[]>([]);
+  const [clientOpen, setClientOpen] = useState(false);
+  const clientRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/jobs/clients').then(r => r.json()).then((d: { clients: string[] }) => setClientOptions(d.clients ?? [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (clientRef.current && !clientRef.current.contains(e.target as Node)) setClientOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [aiPending, startAiTransition] = useTransition();
@@ -141,6 +157,7 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
       experience: form.experience.trim() || '',
       contractDuration: form.contractDuration.trim() || '',
       description: form.description.trim() || '',
+      clientName: form.clientName.trim() || null,
       clientPackage: form.clientPackage ? parseInt(form.clientPackage) : null,
       ourPackage: form.ourPackage ? parseInt(form.ourPackage) : null,
       workMode: form.workMode,
@@ -239,6 +256,49 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
                     placeholder="e.g. Staff Backend Engineer"
                     className="font-mono text-[13px]"
                   />
+                </div>
+                <div className="col-span-2" ref={clientRef}>
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">CLIENT NAME</div>
+                  <div className="relative">
+                    <Input
+                      value={form.clientName}
+                      onChange={(e) => { setForm((f) => ({ ...f, clientName: e.target.value })); setClientOpen(true); }}
+                      onFocus={() => setClientOpen(true)}
+                      placeholder="Type to search or add a client…"
+                      className="font-mono text-[13px] pr-8"
+                    />
+                    {form.clientName && (
+                      <button onClick={() => setForm((f) => ({ ...f, clientName: '' }))} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-[13px]">✕</button>
+                    )}
+                    {clientOpen && (
+                      <div className="absolute z-10 top-full mt-1 w-full bg-card border border-border rounded-[10px] shadow-lg overflow-hidden max-h-[180px] overflow-y-auto">
+                        {(() => {
+                          const q = form.clientName.toLowerCase();
+                          const filtered = clientOptions.filter(c => c.toLowerCase().includes(q));
+                          const showAdd = form.clientName.trim() && !clientOptions.some(c => c.toLowerCase() === q);
+                          return (
+                            <>
+                              {filtered.map(c => (
+                                <button key={c} onMouseDown={() => { setForm((f) => ({ ...f, clientName: c })); setClientOpen(false); }}
+                                  className="w-full text-left px-3 py-2 font-mono text-[12px] hover:bg-muted transition-colors">
+                                  {c}
+                                </button>
+                              ))}
+                              {showAdd && (
+                                <button onMouseDown={() => { setForm((f) => ({ ...f, clientName: form.clientName.trim() })); setClientOpen(false); if (!clientOptions.includes(form.clientName.trim())) setClientOptions(prev => [...prev, form.clientName.trim()]); }}
+                                  className="w-full text-left px-3 py-2 font-mono text-[12px] text-[var(--green-dark)] hover:bg-muted transition-colors border-t border-border">
+                                  + Add &ldquo;{form.clientName.trim()}&rdquo;
+                                </button>
+                              )}
+                              {filtered.length === 0 && !showAdd && (
+                                <p className="px-3 py-2 text-[12px] text-muted-foreground font-mono">No clients found</p>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">JOB CODE <span className="text-destructive">*</span></div>

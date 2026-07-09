@@ -12,6 +12,7 @@ const CreateJobSchema = z.object({
   experience: z.string().max(100).optional(),
   contractDuration: z.string().max(100).optional(),
   description: z.string().optional(),
+  clientName: z.string().max(200).optional().nullable(),
   clientPackage: z.number().int().positive().optional().nullable(),
   ourPackage: z.number().int().positive().optional().nullable(),
   workMode: z.enum(['Remote', 'Hybrid', 'On-Site']).default('Remote'),

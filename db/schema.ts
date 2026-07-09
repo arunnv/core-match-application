@@ -88,6 +88,7 @@ export const jobs = pgTable('jobs', {
   experience: text('experience'),
   contractDuration: text('contract_duration'),
   description: text('description'),
+  clientName: text('client_name'),
   clientPackage: integer('client_package'),
   ourPackage: integer('our_package'),
   status: jobStatusEnum('status').notNull().default('Active'),
