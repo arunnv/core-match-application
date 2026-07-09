@@ -44,8 +44,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static   ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public         ./public
 
-# Copy migrations so we can run them inside the container if needed
-COPY --from=builder --chown=nextjs:nodejs /app/db/migrations  ./db/migrations
+# Copy DB files (schema + migrations) and drizzle config for migration runner
+COPY --from=builder --chown=nextjs:nodejs /app/db             ./db
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json   ./package.json
 
@@ -61,4 +61,4 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # Run migrations then start the server
-CMD ["sh", "-c", "npx drizzle-kit migrate && node server.js"]
+CMD ["sh", "-c", "npx drizzle-kit migrate 2>&1 || echo '[startup] Migration warning — continuing'; node server.js"]
