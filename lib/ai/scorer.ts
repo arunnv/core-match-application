@@ -249,7 +249,7 @@ Return ONLY this JSON (no markdown, no extra fields):
 export async function extractCandidateMeta(candidateId: string, resumeText: string) {
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.1-flash-lite',
       generationConfig: { responseMimeType: 'application/json' },
     });
     const prompt = `Extract contact and identity details from this resume. Return only a JSON object:
