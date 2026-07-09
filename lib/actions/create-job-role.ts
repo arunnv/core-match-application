@@ -148,46 +148,57 @@ ${jdText.slice(0, 4000)}
   const normalisedRubric = normaliseWeights(rubric);
   const workMode = normaliseWorkMode(metadata.workMode);
 
-  const jobCode = nextCode;
-
-  // ── 3. Insert job + rubric atomically ──
+  // ── 3. Insert job + rubric atomically, with auto-retry on code collision ──
   let jobId: string;
-  try {
-    const [job] = await db.insert(jobs).values({
-      tenantId: session.user.tenantId,
-      createdBy: session.user.id ?? undefined,
-      title: metadata.title,
-      code: jobCode,
-      location: metadata.location || 'Remote',
-      workMode,
-      experience: metadata.experienceRequired ?? null,
-      contractDuration: metadata.contractDuration ?? null,
-      description: jdText.trim(),
-      status: 'Active',
-    }).returning({ id: jobs.id });
+  let jobCode = nextCode;
 
-    if (!job) return { ok: false, error: 'Failed to create job record.' };
-    jobId = job.id;
-
-    await db.insert(rubricCompetencies).values(
-      normalisedRubric.map((r, i) => ({
-        jobId,
-        name: r.name,
-        level: r.level,
-        weight: r.weightPercentage,
-        sortOrder: i,
-        mandatory: r.mandatory,
-      }))
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : '';
-    const code = (err as { cause?: { code?: string } })?.cause?.code;
-    if (code === '23505' || msg.includes('unique') || msg.includes('duplicate')) {
-      return { ok: false, error: `Job code ${jobCode} already exists — please try again.` };
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (attempt > 0) {
+      // Re-read global max and increment past it
+      const [fresh] = await db.select({ maxCode: sql<string>`max(code)` }).from(jobs);
+      const freshNum = fresh?.maxCode ? parseInt(fresh.maxCode.replace('JC#', ''), 10) : 100;
+      jobCode = `JC#${String((isNaN(freshNum) ? 100 : freshNum) + 1).padStart(5, '0')}`;
     }
-    console.error('[create-job-role] DB error:', err);
-    return { ok: false, error: 'Database error — please try again.' };
+
+    try {
+      const [job] = await db.insert(jobs).values({
+        tenantId: session.user.tenantId,
+        createdBy: session.user.id ?? undefined,
+        title: metadata.title,
+        code: jobCode,
+        location: metadata.location || 'Remote',
+        workMode,
+        experience: metadata.experienceRequired ?? null,
+        contractDuration: metadata.contractDuration ?? null,
+        description: jdText.trim(),
+        status: 'Active',
+      }).returning({ id: jobs.id });
+
+      if (!job) return { ok: false, error: 'Failed to create job record.' };
+      jobId = job.id;
+
+      await db.insert(rubricCompetencies).values(
+        normalisedRubric.map((r, i) => ({
+          jobId,
+          name: r.name,
+          level: r.level,
+          weight: r.weightPercentage,
+          sortOrder: i,
+          mandatory: r.mandatory,
+        }))
+      );
+
+      return { ok: true, jobId };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      const pgCode = (err as { cause?: { code?: string } })?.cause?.code;
+      if (pgCode === '23505' || msg.includes('unique') || msg.includes('duplicate')) {
+        continue; // retry with a fresh code
+      }
+      console.error('[create-job-role] DB error:', err);
+      return { ok: false, error: 'Database error — please try again.' };
+    }
   }
 
-  return { ok: true, jobId };
+  return { ok: false, error: 'Could not assign a unique job code after several attempts — please try again.' };
 }
