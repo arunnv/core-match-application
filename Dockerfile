@@ -44,13 +44,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static   ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public         ./public
 
-# Copy DB files (schema + migrations) and drizzle config for migration runner
-COPY --from=builder --chown=nextjs:nodejs /app/db             ./db
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
+# Copy migrations and custom runner script
+COPY --from=builder --chown=nextjs:nodejs /app/db/migrations  ./db/migrations
+COPY --from=builder --chown=nextjs:nodejs /app/scripts        ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json   ./package.json
 
-# Install only what's needed for migration runner
-RUN npm install --ignore-scripts drizzle-kit drizzle-orm postgres 2>/dev/null || true
+# Install only postgres driver needed by the migration script
+RUN npm install --ignore-scripts postgres 2>/dev/null || true
 
 USER nextjs
 
@@ -60,4 +60,4 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # Run migrations then start the server
-CMD ["sh", "-c", "npx drizzle-kit migrate 2>&1 || echo '[startup] Migration warning — continuing'; node server.js"]
+CMD ["sh", "-c", "node scripts/migrate.mjs; node server.js"]
