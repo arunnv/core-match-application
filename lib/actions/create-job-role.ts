@@ -62,12 +62,12 @@ export async function createJobRoleAction(jdText: string): Promise<ActionResult>
   if (!session?.user?.tenantId) return { ok: false, error: 'Not authenticated.' };
 
   // ── 1. Generate next job code from DB max (avoids collisions with deleted/archived jobs) ──
-  // Query global max so codes stay unique across all tenants
+  // Query max only over JC#NNNNN pattern codes so batch-imported arbitrary codes don't corrupt the sequence
   const [maxRow] = await db
-    .select({ maxCode: sql<string>`max(code)` })
+    .select({ maxNum: sql<number>`max(cast(substring(code, 4) as integer)) filter (where code ~ '^JC#[0-9]{5}$')` })
     .from(jobs);
-  const lastNum = maxRow?.maxCode ? parseInt(maxRow.maxCode.replace('JC#', ''), 10) : 100;
-  const nextCode = `JC#${String((isNaN(lastNum) ? 100 : lastNum) + 1).padStart(5, '0')}`;
+  const lastNum = maxRow?.maxNum ?? 100;
+  const nextCode = `JC#${String(lastNum + 1).padStart(5, '0')}`;
 
   // ── 2. Unified Gemini call ──
   const model = genAI.getGenerativeModel({
@@ -154,10 +154,10 @@ ${jdText.slice(0, 4000)}
 
   for (let attempt = 0; attempt < 5; attempt++) {
     if (attempt > 0) {
-      // Re-read global max and increment past it
-      const [fresh] = await db.select({ maxCode: sql<string>`max(code)` }).from(jobs);
-      const freshNum = fresh?.maxCode ? parseInt(fresh.maxCode.replace('JC#', ''), 10) : 100;
-      jobCode = `JC#${String((isNaN(freshNum) ? 100 : freshNum) + 1).padStart(5, '0')}`;
+      // Re-read max over JC# sequence codes only
+      const [fresh] = await db.select({ maxNum: sql<number>`max(cast(substring(code, 4) as integer)) filter (where code ~ '^JC#[0-9]{5}$')` }).from(jobs);
+      const freshNum = fresh?.maxNum ?? 100;
+      jobCode = `JC#${String(freshNum + 1).padStart(5, '0')}`;
     }
 
     try {
