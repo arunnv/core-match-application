@@ -174,11 +174,11 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-black/40 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-rise relative flex flex-col w-full max-w-[560px] max-h-[90vh] bg-card border border-border rounded-[18px] overflow-hidden"
+        className="animate-rise relative flex flex-col w-full max-w-[720px] max-h-[92vh] bg-card border border-border rounded-[18px] overflow-hidden"
         style={{ boxShadow: '0 20px 40px rgba(0,0,0,.18)' }}
       >
         {/* Header */}
