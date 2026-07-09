@@ -78,9 +78,22 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
   const [submitting, setSubmitting] = useState(false);
   const [aiPending, startAiTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   const isLoading = submitting || aiPending;
-  const canCreate = mode === 'ai' ? parseText.trim().length > 30 : form.title.trim().length > 0 && form.code.trim().length > 0;
+  const canCreate = mode === 'ai' ? parseText.trim().length > 30 : form.title.trim().length > 0 && form.code.trim().length > 0 && !codeError;
+
+  async function checkCodeDuplicate(code: string) {
+    const trimmed = code.trim();
+    if (!trimmed) { setCodeError(null); return; }
+    try {
+      const res = await fetch(`/api/jobs/check-code?code=${encodeURIComponent(trimmed)}`);
+      const data = await res.json() as { exists: boolean };
+      setCodeError(data.exists ? `Job code "${trimmed}" already exists.` : null);
+    } catch {
+      // silently ignore network errors — submit will catch duplicate
+    }
+  }
 
   const handleSubmit = async () => {
     if (!canCreate || isLoading) return;
@@ -205,10 +218,12 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
                   <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">JOB CODE <span className="text-destructive">*</span></div>
                   <Input
                     value={form.code}
-                    onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                    onChange={(e) => { setForm((f) => ({ ...f, code: e.target.value })); setCodeError(null); }}
+                    onBlur={(e) => checkCodeDuplicate(e.target.value)}
                     placeholder="e.g. JC#00101"
-                    className="font-mono text-[13px]"
+                    className={cn('font-mono text-[13px]', codeError && 'border-destructive focus-visible:ring-destructive')}
                   />
+                  {codeError && <p className="text-[11px] text-destructive mt-1">{codeError}</p>}
                 </div>
                 <div>
                   <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">STATUS</div>
