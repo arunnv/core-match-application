@@ -495,7 +495,7 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-semibold text-[15px] text-foreground" style={{ fontFamily: 'var(--font-space)' }}>{c.name}</span>
-                        <BandBadge score={c.score} />
+                        {c.jobId && <BandBadge score={c.score} />}
                         {inPipe && <Badge variant="outline" className="text-[9px] tracking-[.1em] px-1.5 py-0 font-mono text-blue-600 border-blue-200 bg-blue-50 dark:text-blue-300 dark:border-blue-800 dark:bg-blue-950">IN PIPELINE</Badge>}
                         {isStarred && <Badge variant="outline" className="text-[9px] tracking-[.1em] px-1.5 py-0 font-mono text-amber-600 border-amber-200 bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:bg-amber-950">★ SHORTLISTED</Badge>}
                         {!c.jobId && <Badge variant="outline" className="text-[9px] tracking-[.1em] px-1.5 py-0 font-mono text-amber-700 border-orange-200 bg-orange-50 dark:text-amber-400 dark:border-orange-900 dark:bg-orange-950">NO MATCHING JOB</Badge>}
@@ -671,7 +671,7 @@ export default function AllCandidates({ candidates: initialCandidates, jobs, isS
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-bold text-[21px] leading-[1.1] text-foreground" style={{ fontFamily: 'var(--font-space)' }}>{c.name}</span>
-                        <BandBadge score={c.score} />
+                        {c.jobId && <BandBadge score={c.score} />}
                       </div>
                       <p className="text-[12.5px] text-muted-foreground">{c.currentRole}</p>
                       <p className="text-[11.5px] text-muted-foreground/70 mt-0.5">{c.location}<span className="text-border"> · </span>{c.experience}</p>
