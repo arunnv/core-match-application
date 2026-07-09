@@ -62,10 +62,10 @@ export async function createJobRoleAction(jdText: string): Promise<ActionResult>
   if (!session?.user?.tenantId) return { ok: false, error: 'Not authenticated.' };
 
   // ── 1. Generate next job code from DB max (avoids collisions with deleted/archived jobs) ──
+  // Query global max so codes stay unique across all tenants
   const [maxRow] = await db
     .select({ maxCode: sql<string>`max(code)` })
-    .from(jobs)
-    .where(eq(jobs.tenantId, session.user.tenantId));
+    .from(jobs);
   const lastNum = maxRow?.maxCode ? parseInt(maxRow.maxCode.replace('JC#', ''), 10) : 100;
   const nextCode = `JC#${String((isNaN(lastNum) ? 100 : lastNum) + 1).padStart(5, '0')}`;
 
