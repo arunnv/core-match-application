@@ -14,17 +14,17 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const JobRoleAISchema = z.object({
   metadata: z.object({
     title: z.string().min(1),
-    jobCode: z.string().optional(),
-    location: z.string().default('Remote'),
-    workMode: z.string().default('Remote'),
-    experienceRequired: z.string().optional(),
-    contractDuration: z.string().optional(),
+    jobCode: z.string().nullable().optional(),
+    location: z.string().nullable().optional().transform(v => v ?? 'Remote'),
+    workMode: z.string().nullable().optional().transform(v => v ?? 'Remote'),
+    experienceRequired: z.string().nullable().optional().transform(v => v ?? undefined),
+    contractDuration: z.string().nullable().optional().transform(v => v ?? undefined),
   }),
   rubric: z.array(z.object({
     name: z.string().min(1),
     weightPercentage: z.number().int().min(1).max(100),
     level: z.enum(['CORE', 'IMPORTANT', 'BONUS']),
-    mandatory: z.boolean(),
+    mandatory: z.boolean().nullable().optional().transform(v => v ?? false),
   })).min(4).max(6),
 });
 
