@@ -49,9 +49,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/db             ./db
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json   ./package.json
 
-# Reuse node_modules from builder — drizzle-kit/drizzle-orm/postgres already installed there
-# This avoids an 80-second npm install on every deploy
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules   ./node_modules
+# Install only what's needed for migration runner
+RUN npm install --ignore-scripts drizzle-kit drizzle-orm postgres 2>/dev/null || true
 
 USER nextjs
 
