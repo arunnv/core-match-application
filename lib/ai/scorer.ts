@@ -246,6 +246,52 @@ Return ONLY this JSON (no markdown, no extra fields):
   }
 }
 
+export async function extractCandidateMeta(candidateId: string, resumeText: string) {
+  try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: { responseMimeType: 'application/json' },
+    });
+    const prompt = `Extract contact and identity details from this resume. Return only a JSON object:
+{
+  "email": "email address or null",
+  "phone": "phone number or null",
+  "currentRole": "most recent job title or null",
+  "location": "city, country or null",
+  "years_experience": <integer total years of experience or null>,
+  "tags": ["up to 5 key skills or technologies"]
+}
+
+RESUME:
+${resumeText.slice(0, 3000)}`;
+
+    const result = await model.generateContent(prompt);
+    const raw = result.response.text().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const meta = JSON.parse(raw) as {
+      email?: string | null;
+      phone?: string | null;
+      currentRole?: string | null;
+      location?: string | null;
+      years_experience?: number | null;
+      tags?: string[];
+    };
+
+    const expYears = meta.years_experience;
+    await db.update(candidates).set({
+      email: meta.email ?? null,
+      phone: meta.phone ?? null,
+      currentRole: meta.currentRole ?? null,
+      location: meta.location ?? null,
+      experience: expYears != null ? `${expYears} yr${expYears === 1 ? '' : 's'}` : null,
+      tags: meta.tags ?? [],
+      status: 'unmatched',
+    }).where(eq(candidates.id, candidateId));
+  } catch (err) {
+    console.error(`[scorer] extractCandidateMeta failed for ${candidateId}:`, err);
+    await db.update(candidates).set({ status: 'unmatched' }).where(eq(candidates.id, candidateId));
+  }
+}
+
 async function updateJobCounts(jobId: string) {
   const [counts] = await db
     .select({

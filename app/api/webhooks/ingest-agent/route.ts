@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { candidates, jobs } from '@/db/schema';
 import { eq, ilike } from 'drizzle-orm';
 import { extractText } from '@/lib/ai/parse-resume';
-import { scoreCandidate } from '@/lib/ai/scorer';
+import { scoreCandidate, extractCandidateMeta } from '@/lib/ai/scorer';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
       if (jobId) {
         await scoreCandidate(candidateId, text, jobId);
       } else {
-        await db.update(candidates).set({ status: 'unmatched' }).where(eq(candidates.id, candidateId));
+        await extractCandidateMeta(candidateId, text);
       }
     } catch (err) {
       console.error(`[ingest-agent] post-processing failed for ${candidateId}:`, err);
