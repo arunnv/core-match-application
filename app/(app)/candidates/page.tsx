@@ -19,7 +19,7 @@ export default async function AllCandidatesPage() {
         id: c.id,
         name: c.name || 'Unknown',
         email: c.email ?? (c.sourceEmail as { sender?: string } | null)?.sender?.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i)?.[0] ?? null,
-        phone: c.phone ?? null,
+        phone: c.phone ?? (c.sourceEmail as { bodyHtml?: string } | null)?.bodyHtml?.replace(/<[^>]+>/g, ' ')?.match(/(?:\+?\d[\d\s\-().]{7,}\d)/)?.[0]?.trim() ?? null,
         currentRole: c.currentRole ?? '',
         location: c.location ?? '',
         experience: c.experience ?? '',
