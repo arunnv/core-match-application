@@ -280,52 +280,6 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
                   <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">CONTRACT DURATION</div>
                   <Input value={form.contractDuration} onChange={(e) => setForm((f) => ({ ...f, contractDuration: e.target.value }))} placeholder="e.g. 6+ Months" className="font-mono text-[13px]" />
                 </div>
-                <div>
-                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">CLIENT PACKAGE <span className="text-[9px] normal-case tracking-normal">(₹/month)</span></div>
-                  <Input
-                    value={form.clientPackage}
-                    onChange={(e) => { setForm((f) => ({ ...f, clientPackage: e.target.value })); validatePackage('clientPackage', e.target.value); }}
-                    onBlur={(e) => validatePackage('clientPackage', e.target.value)}
-                    placeholder="e.g. 150000"
-                    className={cn('font-mono text-[13px]', fieldErrors.clientPackage && 'border-destructive')}
-                    type="number"
-                    min={1}
-                  />
-                  {fieldErrors.clientPackage && <p className="text-[11px] text-destructive mt-1">{fieldErrors.clientPackage}</p>}
-                </div>
-                <div>
-                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">OUR PACKAGE <span className="text-[9px] normal-case tracking-normal">(₹/month)</span></div>
-                  <Input
-                    value={form.ourPackage}
-                    onChange={(e) => { setForm((f) => ({ ...f, ourPackage: e.target.value })); validatePackage('ourPackage', e.target.value); }}
-                    onBlur={(e) => validatePackage('ourPackage', e.target.value)}
-                    placeholder="e.g. 120000"
-                    className={cn('font-mono text-[13px]', fieldErrors.ourPackage && 'border-destructive')}
-                    type="number"
-                    min={1}
-                  />
-                  {fieldErrors.ourPackage && <p className="text-[11px] text-destructive mt-1">{fieldErrors.ourPackage}</p>}
-                </div>
-                {margin !== null && (
-                  <div className="col-span-2">
-                    <div className={cn(
-                      'flex items-center justify-between px-3 py-2.5 rounded-[10px] border font-mono text-[12px]',
-                      margin >= 0
-                        ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800'
-                        : 'bg-destructive/10 border-destructive/30'
-                    )}>
-                      <span className="text-muted-foreground text-[10px] tracking-[.1em]">MARGIN</span>
-                      <div className="flex items-center gap-3">
-                        <span className={cn('font-semibold', margin >= 0 ? 'text-[var(--green-dark)]' : 'text-destructive')}>
-                          {margin >= 0 ? '+' : ''}₹{Math.abs(margin).toLocaleString('en-IN')}
-                        </span>
-                        <span className={cn('text-[11px]', margin >= 0 ? 'text-[var(--green-dark)]' : 'text-destructive')}>
-                          ({marginPct}%)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
               <div>
                 <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">WORK MODE</div>
@@ -356,6 +310,56 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
               </div>
             </>
           )}
+
+          {/* Package fields — always visible in both modes */}
+          <div className="grid grid-cols-2 gap-3.5">
+            <div>
+              <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">CLIENT PACKAGE <span className="text-[9px] normal-case tracking-normal">(₹/month)</span></div>
+              <Input
+                value={form.clientPackage}
+                onChange={(e) => { setForm((f) => ({ ...f, clientPackage: e.target.value })); validatePackage('clientPackage', e.target.value); }}
+                onBlur={(e) => validatePackage('clientPackage', e.target.value)}
+                placeholder="e.g. 150000"
+                className={cn('font-mono text-[13px]', fieldErrors.clientPackage && 'border-destructive')}
+                type="number"
+                min={1}
+              />
+              {fieldErrors.clientPackage && <p className="text-[11px] text-destructive mt-1">{fieldErrors.clientPackage}</p>}
+            </div>
+            <div>
+              <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">OUR PACKAGE <span className="text-[9px] normal-case tracking-normal">(₹/month)</span></div>
+              <Input
+                value={form.ourPackage}
+                onChange={(e) => { setForm((f) => ({ ...f, ourPackage: e.target.value })); validatePackage('ourPackage', e.target.value); }}
+                onBlur={(e) => validatePackage('ourPackage', e.target.value)}
+                placeholder="e.g. 120000"
+                className={cn('font-mono text-[13px]', fieldErrors.ourPackage && 'border-destructive')}
+                type="number"
+                min={1}
+              />
+              {fieldErrors.ourPackage && <p className="text-[11px] text-destructive mt-1">{fieldErrors.ourPackage}</p>}
+            </div>
+            {margin !== null && (
+              <div className="col-span-2">
+                <div className={cn(
+                  'flex items-center justify-between px-3 py-2.5 rounded-[10px] border font-mono text-[12px]',
+                  margin >= 0
+                    ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800'
+                    : 'bg-destructive/10 border-destructive/30'
+                )}>
+                  <span className="text-muted-foreground text-[10px] tracking-[.1em]">MARGIN</span>
+                  <div className="flex items-center gap-3">
+                    <span className={cn('font-semibold', margin >= 0 ? 'text-[var(--green-dark)]' : 'text-destructive')}>
+                      {margin >= 0 ? '+' : '–'}₹{Math.abs(margin).toLocaleString('en-IN')}
+                    </span>
+                    <span className={cn('text-[11px]', margin >= 0 ? 'text-[var(--green-dark)]' : 'text-destructive')}>
+                      ({marginPct}%)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {error && (
             <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/30 rounded-[9px] text-[12px] text-destructive">
