@@ -80,7 +80,7 @@ export default function SheetsImportWizard({
   onClose: () => void;
   onImported: (count: number) => void;
 }) {
-  const [source, setSource] = useState<Source>('sheets');
+  const [source, setSource] = useState<Source>('excel');
   const [step, setStep] = useState<Step>(1);
 
   // Google Sheets state
@@ -282,6 +282,19 @@ export default function SheetsImportWizard({
             {step === 1 && (
               <div className="flex gap-1.5 bg-muted p-1 rounded-[9px] mb-3 w-fit">
                 <button
+                  onClick={() => { setSource('excel'); setError(''); }}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] font-mono text-[11.5px] border-none cursor-pointer transition-all',
+                    source === 'excel' ? 'bg-card text-foreground shadow-sm' : 'bg-transparent text-muted-foreground'
+                  )}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="#1D6F42" strokeWidth="1.8"/>
+                    <path d="M8 8l3 4-3 4M12 16h4M12 12h4M12 8h4" stroke="#1D6F42" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  Excel / CSV
+                </button>
+                <button
                   onClick={() => { setSource('sheets'); setError(''); }}
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] font-mono text-[11.5px] border-none cursor-pointer transition-all',
@@ -294,20 +307,7 @@ export default function SheetsImportWizard({
                     <path fill="#FBBC05" d="M5.6 14.71A6.9 6.9 0 0 1 5.23 12c0-.94.16-1.86.37-2.71V6.31H1.76A11.5 11.5 0 0 0 .5 12c0 1.86.45 3.62 1.26 5.69l3.84-2.98z"/>
                     <path fill="#EA4335" d="M12 4.77c1.68 0 3.2.58 4.39 1.72l3.29-3.29C17.7 1.18 15.1 0 12 0A11.5 11.5 0 0 0 1.76 6.31l3.84 2.98C6.5 6.78 9.02 4.77 12 4.77z"/>
                   </svg>
-                  Google Sheets
-                </button>
-                <button
-                  onClick={() => { setSource('excel'); setError(''); }}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] font-mono text-[11.5px] border-none cursor-pointer transition-all',
-                    source === 'excel' ? 'bg-card text-foreground shadow-sm' : 'bg-transparent text-muted-foreground'
-                  )}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="#1D6F42" strokeWidth="1.8"/>
-                    <path d="M8 8l3 4-3 4M12 16h4M12 12h4M12 8h4" stroke="#1D6F42" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                  Excel / CSV
+                  Google Sheets <span className="text-[9px] opacity-60">(Beta)</span>
                 </button>
               </div>
             )}
