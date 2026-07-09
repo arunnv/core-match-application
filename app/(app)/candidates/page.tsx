@@ -18,7 +18,7 @@ export default async function AllCandidatesPage() {
       candidates={rows.map((c) => ({
         id: c.id,
         name: c.name || 'Unknown',
-        email: c.email ?? null,
+        email: c.email ?? (c.sourceEmail as { sender?: string } | null)?.sender?.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i)?.[0] ?? null,
         phone: c.phone ?? null,
         currentRole: c.currentRole ?? '',
         location: c.location ?? '',
