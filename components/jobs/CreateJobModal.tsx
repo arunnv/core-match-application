@@ -62,7 +62,7 @@ function parseJD(text: string) {
 export default function CreateJobModal({ onClose, onCreate, existingCount }: Props) {
   const router = useRouter();
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
-  const [parseText, setParseText] = useState(EXAMPLE_JD);
+  const [parseText, setParseText] = useState('');
   const [form, setForm] = useState({ title: '', location: '', experience: '', workMode: 'Remote' as typeof WORK_MODES[number] });
   const [submitting, setSubmitting] = useState(false);
   const [aiPending, startAiTransition] = useTransition();
