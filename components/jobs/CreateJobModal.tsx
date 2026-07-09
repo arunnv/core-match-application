@@ -25,6 +25,7 @@ type Props = {
 };
 
 const WORK_MODES = ['Remote', 'Hybrid', 'On-Site'] as const;
+const STATUSES = ['Active', 'Draft', 'Archived'] as const;
 const EXAMPLE_JD = `🚀 Hiring Now | Oracle CPQ Developer
 📌 Job Code: JC#00103
 📍 Location: Remote
@@ -61,16 +62,25 @@ function parseJD(text: string) {
 
 export default function CreateJobModal({ onClose, onCreate, existingCount }: Props) {
   const router = useRouter();
+  const defaultCode = `JC#${String(105 + existingCount).padStart(5, '0')}`;
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const [parseText, setParseText] = useState('');
-  const [form, setForm] = useState({ title: '', location: '', experience: '', workMode: 'Remote' as typeof WORK_MODES[number] });
+  const [form, setForm] = useState({
+    title: '',
+    code: defaultCode,
+    location: '',
+    experience: '',
+    contractDuration: '',
+    description: '',
+    workMode: 'Remote' as typeof WORK_MODES[number],
+    status: 'Active' as typeof STATUSES[number],
+  });
   const [submitting, setSubmitting] = useState(false);
   const [aiPending, startAiTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const nextCode = `JC#${String(105 + existingCount).padStart(5, '0')}`;
   const isLoading = submitting || aiPending;
-  const canCreate = mode === 'ai' ? parseText.trim().length > 30 : form.title.trim().length > 0;
+  const canCreate = mode === 'ai' ? parseText.trim().length > 30 : form.title.trim().length > 0 && form.code.trim().length > 0;
 
   const handleSubmit = async () => {
     if (!canCreate || isLoading) return;
@@ -86,14 +96,16 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
       return;
     }
 
-    if (!form.title.trim()) return;
+    if (!form.title.trim() || !form.code.trim()) return;
     const payload = {
       title: form.title.trim(),
+      code: form.code.trim(),
       location: form.location.trim() || form.workMode,
       experience: form.experience.trim() || '',
+      contractDuration: form.contractDuration.trim() || '',
+      description: form.description.trim() || '',
       workMode: form.workMode,
-      status: 'Active',
-      code: nextCode,
+      status: form.status,
     };
 
     setSubmitting(true);
@@ -179,21 +191,42 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
             </div>
           ) : (
             <>
-              <div>
-                <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">ROLE TITLE</div>
-                <Input
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder="e.g. Staff Backend Engineer"
-                  className="font-mono text-[13px]"
-                />
-              </div>
-              <div className="flex items-center gap-2.5 bg-muted/40 border border-dashed border-border rounded-[10px] px-3 py-2.5">
-                <span className="text-[10px] tracking-[.14em] text-muted-foreground">JOB CODE</span>
-                <span className="font-semibold text-[14px] text-foreground" style={{ fontFamily: 'var(--font-space)' }}>{nextCode}</span>
-                <span className="ml-auto text-[10px] text-muted-foreground">auto-assigned</span>
-              </div>
               <div className="grid grid-cols-2 gap-3.5">
+                <div className="col-span-2">
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">ROLE TITLE <span className="text-destructive">*</span></div>
+                  <Input
+                    value={form.title}
+                    onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Staff Backend Engineer"
+                    className="font-mono text-[13px]"
+                  />
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">JOB CODE <span className="text-destructive">*</span></div>
+                  <Input
+                    value={form.code}
+                    onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                    placeholder="e.g. JC#00101"
+                    className="font-mono text-[13px]"
+                  />
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">STATUS</div>
+                  <div className="flex gap-1.5">
+                    {STATUSES.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setForm((f) => ({ ...f, status: s }))}
+                        className={cn(
+                          'flex-1 text-center py-1.5 rounded-[9px] font-mono text-[11px] cursor-pointer border transition-all',
+                          form.status === s
+                            ? 'border-foreground bg-foreground text-background'
+                            : 'border-border bg-card text-muted-foreground hover:border-muted-foreground/40'
+                        )}
+                      >{s}</button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">LOCATION</div>
                   <Input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} placeholder="e.g. Kochi, IN" className="font-mono text-[13px]" />
@@ -201,6 +234,10 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
                 <div>
                   <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">EXPERIENCE</div>
                   <Input value={form.experience} onChange={(e) => setForm((f) => ({ ...f, experience: e.target.value }))} placeholder="e.g. 5–6 Yrs Exp" className="font-mono text-[13px]" />
+                </div>
+                <div className="col-span-2">
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">CONTRACT DURATION</div>
+                  <Input value={form.contractDuration} onChange={(e) => setForm((f) => ({ ...f, contractDuration: e.target.value }))} placeholder="e.g. 6+ Months" className="font-mono text-[13px]" />
                 </div>
               </div>
               <div>
@@ -219,6 +256,16 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
                     >{m}</button>
                   ))}
                 </div>
+              </div>
+              <div>
+                <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">DESCRIPTION</div>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Optional job description or notes…"
+                  rows={3}
+                  className="w-full border border-border rounded-xl p-3 text-[12.5px] leading-relaxed text-foreground bg-muted/40 outline-none resize-y box-border focus:border-muted-foreground/40 transition-colors font-mono"
+                />
               </div>
             </>
           )}
