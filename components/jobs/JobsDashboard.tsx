@@ -83,7 +83,7 @@ export default function JobsDashboard({
   };
 
   return (
-    <div className="max-w-[1200px] px-12 pb-24 pt-20 animate-rise" style={{ paddingLeft: '96px' }}>
+    <div className="w-full px-12 pb-24 pt-20 animate-rise" style={{ paddingLeft: '96px' }}>
       {/* Header */}
       <div className="flex items-end justify-between gap-6 mb-8">
         <div>
