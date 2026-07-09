@@ -72,16 +72,40 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
     experience: '',
     contractDuration: '',
     description: '',
+    clientPackage: '',
+    ourPackage: '',
     workMode: 'Remote' as typeof WORK_MODES[number],
     status: 'Active' as typeof STATUSES[number],
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [aiPending, startAiTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
 
+  const clientPkg = parseInt(form.clientPackage) || 0;
+  const ourPkg = parseInt(form.ourPackage) || 0;
+  const margin = clientPkg > 0 && ourPkg > 0 ? clientPkg - ourPkg : null;
+  const marginPct = clientPkg > 0 && ourPkg > 0 ? (((clientPkg - ourPkg) / clientPkg) * 100).toFixed(1) : null;
+
   const isLoading = submitting || aiPending;
-  const canCreate = mode === 'ai' ? parseText.trim().length > 30 : form.title.trim().length > 0 && form.code.trim().length > 0 && !codeError;
+  const canCreate = mode === 'ai' ? parseText.trim().length > 30 : form.title.trim().length > 0 && form.code.trim().length > 0 && !codeError && Object.keys(fieldErrors).length === 0;
+
+  function setFieldError(field: string, msg: string | null) {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (msg) next[field] = msg;
+      else delete next[field];
+      return next;
+    });
+  }
+
+  function validatePackage(field: 'clientPackage' | 'ourPackage', value: string) {
+    if (!value) { setFieldError(field, null); return; }
+    const n = parseInt(value);
+    if (isNaN(n) || n <= 0) { setFieldError(field, 'Must be a positive number'); return; }
+    setFieldError(field, null);
+  }
 
   async function checkCodeDuplicate(code: string) {
     const trimmed = code.trim();
@@ -117,6 +141,8 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
       experience: form.experience.trim() || '',
       contractDuration: form.contractDuration.trim() || '',
       description: form.description.trim() || '',
+      clientPackage: form.clientPackage ? parseInt(form.clientPackage) : null,
+      ourPackage: form.ourPackage ? parseInt(form.ourPackage) : null,
       workMode: form.workMode,
       status: form.status,
     };
@@ -254,6 +280,52 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
                   <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">CONTRACT DURATION</div>
                   <Input value={form.contractDuration} onChange={(e) => setForm((f) => ({ ...f, contractDuration: e.target.value }))} placeholder="e.g. 6+ Months" className="font-mono text-[13px]" />
                 </div>
+                <div>
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">CLIENT PACKAGE <span className="text-[9px] normal-case tracking-normal">(₹/month)</span></div>
+                  <Input
+                    value={form.clientPackage}
+                    onChange={(e) => { setForm((f) => ({ ...f, clientPackage: e.target.value })); validatePackage('clientPackage', e.target.value); }}
+                    onBlur={(e) => validatePackage('clientPackage', e.target.value)}
+                    placeholder="e.g. 150000"
+                    className={cn('font-mono text-[13px]', fieldErrors.clientPackage && 'border-destructive')}
+                    type="number"
+                    min={1}
+                  />
+                  {fieldErrors.clientPackage && <p className="text-[11px] text-destructive mt-1">{fieldErrors.clientPackage}</p>}
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">OUR PACKAGE <span className="text-[9px] normal-case tracking-normal">(₹/month)</span></div>
+                  <Input
+                    value={form.ourPackage}
+                    onChange={(e) => { setForm((f) => ({ ...f, ourPackage: e.target.value })); validatePackage('ourPackage', e.target.value); }}
+                    onBlur={(e) => validatePackage('ourPackage', e.target.value)}
+                    placeholder="e.g. 120000"
+                    className={cn('font-mono text-[13px]', fieldErrors.ourPackage && 'border-destructive')}
+                    type="number"
+                    min={1}
+                  />
+                  {fieldErrors.ourPackage && <p className="text-[11px] text-destructive mt-1">{fieldErrors.ourPackage}</p>}
+                </div>
+                {margin !== null && (
+                  <div className="col-span-2">
+                    <div className={cn(
+                      'flex items-center justify-between px-3 py-2.5 rounded-[10px] border font-mono text-[12px]',
+                      margin >= 0
+                        ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800'
+                        : 'bg-destructive/10 border-destructive/30'
+                    )}>
+                      <span className="text-muted-foreground text-[10px] tracking-[.1em]">MARGIN</span>
+                      <div className="flex items-center gap-3">
+                        <span className={cn('font-semibold', margin >= 0 ? 'text-[var(--green-dark)]' : 'text-destructive')}>
+                          {margin >= 0 ? '+' : ''}₹{Math.abs(margin).toLocaleString('en-IN')}
+                        </span>
+                        <span className={cn('text-[11px]', margin >= 0 ? 'text-[var(--green-dark)]' : 'text-destructive')}>
+                          ({marginPct}%)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <div className="text-[10px] tracking-[.14em] text-muted-foreground mb-2">WORK MODE</div>
@@ -296,8 +368,8 @@ export default function CreateJobModal({ onClose, onCreate, existingCount }: Pro
         {/* Footer */}
         <div className="shrink-0 px-6 py-4 border-t border-border bg-muted/40 flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />
-            Created as Active
+            <span className={cn('w-1.5 h-1.5 rounded-full', mode === 'manual' && form.status === 'Draft' ? 'bg-amber-400' : mode === 'manual' && form.status === 'Archived' ? 'bg-muted-foreground' : 'bg-[var(--green)]')} />
+            Created as {mode === 'manual' ? form.status : 'Active'}
           </span>
           <div className="flex gap-2.5">
             <Button variant="outline" onClick={onClose} className="font-mono text-[12.5px]">Cancel</Button>
